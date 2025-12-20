@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Containers: Node.js Launch",
+            "type": "docker",
+            "request": "launch",
+            "preLaunchTask": "docker-run: debug",
+            "platform": "node",
+            "node": {
+                "package": "${workspaceFolder}/rise-local-lead-creation/marketing/landing_pages/package.json",
+                "localRoot": "${workspaceFolder}/rise-local-lead-creation/marketing/landing_pages"
+            }
+        }
+    ]
+}

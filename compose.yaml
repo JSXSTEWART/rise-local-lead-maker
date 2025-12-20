@@ -1,0 +1,10 @@
+services:
+  landingpages:
+    image: landingpages
+    build:
+      context: rise-local-lead-creation/marketing/landing_pages
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000
