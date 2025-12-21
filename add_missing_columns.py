@@ -12,8 +12,8 @@ print("-" * 70)
 
 sql = """
 -- Add missing columns to leads table
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS address_verified BOOLEAN DEFAULT FALSE;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS address_verified_at TIMESTAMP;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS address_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS address_verified_at TIMESTAMP;
 """
 
 print(sql)

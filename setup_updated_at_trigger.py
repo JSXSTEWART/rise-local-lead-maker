@@ -25,7 +25,7 @@ $$ LANGUAGE plpgsql;
 
 -- Create trigger on leads table
 CREATE TRIGGER update_leads_updated_at
-BEFORE UPDATE ON leads
+BEFORE UPDATE ON public.leads
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 """

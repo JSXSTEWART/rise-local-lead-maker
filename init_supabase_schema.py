@@ -37,6 +37,7 @@ print("-" * 70)
 
 sql = """CREATE TABLE IF NOT EXISTS leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID,
     business_name VARCHAR(255) NOT NULL,
     address_full VARCHAR(500),
     address_city VARCHAR(100),
@@ -118,7 +119,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_prequalification ON leads(prequalification_status);
 CREATE INDEX IF NOT EXISTS idx_leads_qualification ON leads(qualification_status);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_leads_category ON leads(lead_category);"""
+CREATE INDEX IF NOT EXISTS idx_leads_category ON leads(lead_category);
+CREATE INDEX IF NOT EXISTS idx_leads_owner_id ON leads(owner_id);"""
 
 print(sql)
 
