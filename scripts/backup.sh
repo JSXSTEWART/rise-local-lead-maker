@@ -3,7 +3,7 @@
 
 BACKUP_DIR="/backup/rise-leads"
 DATE=$(date +%Y%m%d_%H%M%S)
-DB_USER="rise_api"
+DB_USER="root"
 DB_NAME="rise_leads"
 
 # Create backup directory if not exists
@@ -11,7 +11,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Perform backup
 echo "[$(date)] Starting backup of $DB_NAME..."
-mysqldump -u "$DB_USER" "$DB_NAME" 2>/dev/null | gzip > "$BACKUP_DIR/rise_leads_$DATE.sql.gz"
+mysqldump -u "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_DIR/rise_leads_$DATE.sql.gz"
 
 if [ $? -eq 0 ]; then
     echo "[$(date)] Backup completed: rise_leads_$DATE.sql.gz"

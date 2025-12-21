@@ -163,7 +163,12 @@ case "$1" in
         start_session "$2"
         ;;
     log)
-        log_action "${2:-INFO}" "$3"
+        # Support both: log "message" [level] AND log [level] "message"
+        if [[ "$2" =~ ^(INFO|WARN|ERROR|TASK)$ ]]; then
+            log_action "$2" "$3"
+        else
+            log_action "${3:-INFO}" "$2"
+        fi
         ;;
     end)
         end_session "$2"

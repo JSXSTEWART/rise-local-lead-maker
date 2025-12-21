@@ -1,0 +1,153 @@
+{
+  "project": "Rise Local Lead Maker",
+  "last_updated": "2025-12-21T07:02:00Z",
+  "session_id": "20251221_062629",
+
+  "system_status": {
+    "api": {
+      "port": 3001,
+      "status": "running",
+      "systemd_service": "rise-api.service",
+      "env_file": "/opt/rise-local-lead-maker/rise-local-lead-creation/api/.env.production"
+    },
+    "database": {
+      "type": "mysql",
+      "port": 3306,
+      "name": "rise_leads",
+      "user": "rise_api"
+    },
+    "mcp_server": {
+      "path": "/opt/rise-local-lead-maker/mcp-server/index.js",
+      "tools_count": 16,
+      "tools": [
+        "rise_health", "rise_list_leads", "rise_get_lead", "rise_create_lead",
+        "rise_search_leads", "rise_get_stats", "rise_enrich_lead", "rise_qualify_lead",
+        "rise_scrape_google", "rise_scrape_website",
+        "rise_session_start", "rise_session_log", "rise_session_end",
+        "rise_session_status", "rise_session_resume", "rise_session_context"
+      ]
+    }
+  },
+
+  "api_keys_configured": {
+    "GOOGLE_PLACES_API_KEY": true,
+    "ANTHROPIC_API_KEY": true,
+    "GEMINI_API_KEY": false,
+    "CLAY_API_KEY": false
+  },
+
+  "data_summary": {
+    "total_leads": 116,
+    "enriched_leads": 11,
+    "new_leads": 105,
+    "sources": {
+      "google_places": 114,
+      "mcp-test": 1,
+      "unknown": 1
+    },
+    "industries_scraped": [
+      "plumbers",
+      "electricians",
+      "HVAC contractors",
+      "roofing contractors",
+      "landscaping",
+      "pest control"
+    ],
+    "location": "Austin, TX"
+  },
+
+  "top_enriched_leads": [
+    {"id": 102, "company": "ClearDefense Pest Control", "rating": 5.0, "reviews": 1473, "ai_score": 4},
+    {"id": 61, "company": "Austin Roofing & Water Damage", "rating": 5.0, "reviews": 1297, "ai_score": 6},
+    {"id": 77, "company": "Priority Roofing", "rating": 5.0, "reviews": 1059, "ai_score": 4},
+    {"id": 60, "company": "LOA Construction & Austin Roofing", "rating": 5.0, "reviews": 922, "ai_score": 4},
+    {"id": 56, "company": "Alamo Austin Air Conditioning", "rating": 5.0, "reviews": 868, "ai_score": 4},
+    {"id": 44, "company": "The Coolest LLC", "rating": 5.0, "reviews": 753, "ai_score": 4},
+    {"id": 73, "company": "Matthew Lorand Roofing", "rating": 5.0, "reviews": 446, "ai_score": 6},
+    {"id": 71, "company": "Quality Exteriors", "rating": 5.0, "reviews": 408, "ai_score": 4},
+    {"id": 75, "company": "Falcon Roofing & Restoration", "rating": 5.0, "reviews": 356, "ai_score": 4},
+    {"id": 25, "company": "DC Electric", "rating": 5.0, "reviews": 297, "ai_score": 4}
+  ],
+
+  "file_paths": {
+    "leads_export": "/opt/rise-local-lead-maker/scripts/agent-memory/data/leads-export.json",
+    "stats": "/opt/rise-local-lead-maker/scripts/agent-memory/data/stats.json",
+    "session_log": "/opt/rise-local-lead-maker/scripts/agent-memory/agent.log",
+    "sessions_dir": "/opt/rise-local-lead-maker/scripts/agent-memory/sessions/",
+    "claude_md": "/opt/rise-local-lead-maker/CLAUDE.md",
+    "mcp_config": "/opt/rise-local-lead-maker/.mcp.json"
+  },
+
+  "next_actions": [
+    "Qualify remaining 105 new leads",
+    "Scrape more Austin business categories",
+    "Configure Clay API for deeper enrichment",
+    "Set up Google Sheets sync for export",
+    "Add more cities beyond Austin"
+  ],
+
+  "commands": {
+    "restart_api": "systemctl restart rise-api",
+    "check_status": "systemctl status rise-api",
+    "view_logs": "journalctl -u rise-api -f",
+    "test_health": "curl http://localhost:3001/health",
+    "session_status": "/opt/rise-local-lead-maker/scripts/agent-memory/session-logger.sh status",
+    "resume_session": "/opt/rise-local-lead-maker/scripts/agent-memory/session-logger.sh resume"
+  },
+
+  "mcp_functions": {
+    "lead_management": {
+      "rise_list_leads": {"params": {"status": "new|enriched|failed", "limit": 20, "page": 1}, "use": "List and filter leads"},
+      "rise_get_lead": {"params": {"id": "number"}, "use": "Get single lead details"},
+      "rise_create_lead": {"params": {"company": "string", "email": "string"}, "use": "Create new lead"},
+      "rise_search_leads": {"params": {"query": "string"}, "use": "Search leads by company/email"},
+      "rise_get_stats": {"params": {}, "use": "Get lead statistics by status/source"}
+    },
+    "scraping": {
+      "rise_scrape_google": {"params": {"query": "string", "location": "string"}, "use": "Scrape Google Places for businesses"},
+      "rise_scrape_website": {"params": {"url": "string"}, "use": "Scrape business website for contact info"}
+    },
+    "enrichment": {
+      "rise_enrich_lead": {"params": {"id": "number"}, "use": "Enrich lead with AI analysis"},
+      "rise_qualify_lead": {"params": {"id": "number"}, "use": "Score and qualify lead"}
+    },
+    "session_memory": {
+      "rise_session_start": {"params": {}, "use": "Start new session tracking"},
+      "rise_session_log": {"params": {"message": "string", "level": "INFO|WARN|ERROR|TASK"}, "use": "Log action to session"},
+      "rise_session_end": {"params": {"summary": "string"}, "use": "End session with summary"},
+      "rise_session_status": {"params": {}, "use": "Get current session status"},
+      "rise_session_resume": {"params": {}, "use": "Resume from last session"},
+      "rise_session_context": {"params": {}, "use": "Get full project context"}
+    }
+  },
+
+  "api_endpoints": {
+    "health": "GET /health",
+    "leads": {
+      "list": "GET /api/leads?status=&limit=&page=",
+      "get": "GET /api/leads/:id",
+      "create": "POST /api/leads",
+      "search": "GET /api/leads/search?q=",
+      "stats": "GET /api/leads/stats"
+    },
+    "scraper": {
+      "google_places": "POST /api/scraper/google-places",
+      "website": "POST /api/scraper/website"
+    },
+    "enrichment": {
+      "single": "POST /api/enrichment/:id",
+      "batch": "POST /api/enrichment/batch"
+    },
+    "qualify": {
+      "single": "POST /api/qualify/:id",
+      "batch": "POST /api/qualify/batch"
+    }
+  },
+
+  "quick_start": {
+    "step_1": "Read this context.json for current state",
+    "step_2": "Use rise_session_resume MCP tool to continue session",
+    "step_3": "Use rise_get_stats to check current lead counts",
+    "step_4": "Reference next_actions for pending work"
+  }
+}

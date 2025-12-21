@@ -10,29 +10,119 @@ import { execSync } from 'child_process';
 
 const RISE_API_URL = process.env.RISE_API_URL || 'http://localhost:3001';
 const MEMORY_SCRIPT = '/opt/rise-local-lead-maker/scripts/agent-memory/session-logger.sh';
+const DEFAULT_TIMEOUT = 30000; // 30 seconds
+const MAX_RETRIES = 3;
 
-// Helper function for memory/session commands
+// Helper function for memory/session commands with input sanitization
 function runMemoryCommand(action, ...args) {
   try {
-    const cmd = `${MEMORY_SCRIPT} ${action} ${args.map(a => `"${a}"`).join(' ')}`;
-    return execSync(cmd, { encoding: 'utf8' }).trim();
+    // Sanitize inputs to prevent shell injection
+    const sanitizedArgs = args.map(a =>
+      String(a || '').replace(/[`$\\!]/g, '').slice(0, 1000)
+    );
+    const cmd = `${MEMORY_SCRIPT} ${action} ${sanitizedArgs.map(a => `"${a}"`).join(' ')}`;
+    return execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim();
   } catch (error) {
     return `Error: ${error.message}`;
   }
 }
 
-// Helper function to make API calls
-async function callAPI(endpoint, method = 'GET', body = null) {
-  const options = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-  };
-  if (body) {
-    options.body = JSON.stringify(body);
+// Sleep helper
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Format qualification factors for readable output
+function formatQualificationResult(result) {
+  if (!result?.success || !result?.data) return result;
+
+  const data = result.data;
+
+  // Format factors array if present
+  if (data.factors && Array.isArray(data.factors)) {
+    data.formattedFactors = data.factors.map(f => ({
+      factor: f.name,
+      score: `${Math.round(f.score)}/100`,
+      weight: `${Math.round(f.weight * 100)}%`,
+      reason: f.reason
+    }));
+
+    // Create human-readable summary
+    data.factorsSummary = data.factors.map(f =>
+      `• ${f.name}: ${Math.round(f.score)}/100 (weight: ${Math.round(f.weight * 100)}%) - ${f.reason}`
+    ).join('\n');
   }
 
-  const response = await fetch(`${RISE_API_URL}${endpoint}`, options);
-  return response.json();
+  // Format batch results if present
+  if (data.results && Array.isArray(data.results)) {
+    data.results = data.results.map(r => {
+      if (r.factors && Array.isArray(r.factors)) {
+        r.formattedFactors = r.factors.map(f => ({
+          factor: f.name,
+          score: `${Math.round(f.score)}/100`,
+          weight: `${Math.round(f.weight * 100)}%`,
+          reason: f.reason
+        }));
+        r.factorsSummary = r.factors.map(f =>
+          `• ${f.name}: ${Math.round(f.score)}/100 (weight: ${Math.round(f.weight * 100)}%) - ${f.reason}`
+        ).join('\n');
+      }
+      return r;
+    });
+  }
+
+  return result;
+}
+
+// Enhanced API call with retry logic and timeout
+async function callAPI(endpoint, method = 'GET', body = null, options = {}) {
+  const { timeout = DEFAULT_TIMEOUT, retries = MAX_RETRIES } = options;
+
+  const fetchOptions = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(timeout),
+  };
+
+  if (body) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  let lastError;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await fetch(`${RISE_API_URL}${endpoint}`, fetchOptions);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error?.message || `HTTP ${response.status}`);
+        error.status = response.status;
+
+        // Don't retry client errors (4xx)
+        if (response.status >= 400 && response.status < 500) {
+          throw error;
+        }
+
+        lastError = error;
+      } else {
+        return await response.json();
+      }
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry if it's a client error or abort
+      if (error.name === 'AbortError' || error.status < 500) {
+        throw error;
+      }
+
+      // Exponential backoff before retry
+      if (attempt < retries - 1) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        console.error(`[MCP] Retry ${attempt + 1}/${retries} for ${endpoint} after ${delay}ms`);
+        await sleep(delay);
+      }
+    }
+  }
+
+  throw lastError || new Error('Request failed after retries');
 }
 
 // Create server
@@ -221,6 +311,176 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['context'],
       },
     },
+    // Batch operation tools
+    {
+      name: 'rise_bulk_create_leads',
+      description: 'Create multiple leads at once (up to 100)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          leads: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                email: { type: 'string' },
+                company: { type: 'string' },
+                phone: { type: 'string' },
+                website: { type: 'string' },
+                location: { type: 'string' },
+                industry: { type: 'string' },
+                source: { type: 'string' },
+              },
+            },
+            description: 'Array of leads to create',
+          },
+        },
+        required: ['leads'],
+      },
+    },
+    {
+      name: 'rise_batch_enrich',
+      description: 'Enrich multiple leads in batch',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max number of leads to enrich (default: 10)' },
+          status: { type: 'string', enum: ['new', 'failed'], description: 'Filter by status (default: new)' },
+        },
+      },
+    },
+    {
+      name: 'rise_batch_qualify',
+      description: 'Qualify multiple leads in batch',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max number of leads to qualify (default: 50)' },
+          minScore: { type: 'number', description: 'Minimum score threshold (default: 0)' },
+        },
+      },
+    },
+    {
+      name: 'rise_export_leads',
+      description: 'Export leads to JSON format',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['new', 'enriching', 'enriched', 'failed'], description: 'Filter by status' },
+          limit: { type: 'number', description: 'Max number of leads to export (default: 100)' },
+          format: { type: 'string', enum: ['json', 'csv'], description: 'Export format (default: json)' },
+        },
+      },
+    },
+    {
+      name: 'rise_bulk_scrape_google',
+      description: 'Run multiple Google Places searches',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          queries: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                location: { type: 'string' },
+              },
+              required: ['query'],
+            },
+            description: 'Array of search queries (max 20)',
+          },
+        },
+        required: ['queries'],
+      },
+    },
+    {
+      name: 'rise_enrichment_stats',
+      description: 'Get enrichment statistics and success rates',
+      inputSchema: { type: 'object', properties: {} },
+    },
+    {
+      name: 'rise_qualification_stats',
+      description: 'Get qualification score distribution and stats',
+      inputSchema: { type: 'object', properties: {} },
+    },
+    // Multi-AI Tools - Claude and Gemini working together
+    {
+      name: 'rise_multi_ai_status',
+      description: 'Check multi-AI configuration status and available capabilities',
+      inputSchema: { type: 'object', properties: {} },
+    },
+    {
+      name: 'rise_multi_ai_analyze',
+      description: 'Run parallel analysis using both Claude and Gemini, then synthesize results',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'The analysis prompt to send to both AIs' },
+          synthesize: { type: 'boolean', description: 'Whether to synthesize results (default: true)' },
+        },
+        required: ['prompt'],
+      },
+    },
+    {
+      name: 'rise_multi_ai_consensus',
+      description: 'Have both AIs analyze a topic and find consensus',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'The topic to analyze' },
+          context: { type: 'object', description: 'Additional context as key-value pairs' },
+        },
+        required: ['topic'],
+      },
+    },
+    {
+      name: 'rise_multi_ai_deep_enrich',
+      description: 'Deep lead enrichment using both Claude and Gemini collaboratively. Returns combined insights, shared/unique perspectives, and outreach strategy.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Lead ID to deep enrich' },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'rise_multi_ai_outreach',
+      description: 'Generate outreach email using both AIs, picking the best result',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Lead ID to generate outreach for' },
+          style: { type: 'string', enum: ['formal', 'casual', 'consultative'], description: 'Email style (default: consultative)' },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'rise_multi_ai_competitor',
+      description: 'Analyze competitors using both AIs for comprehensive market intelligence',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          company: { type: 'string', description: 'Company name to analyze' },
+          industry: { type: 'string', description: 'Industry sector' },
+          website: { type: 'string', description: 'Company website (optional)' },
+        },
+        required: ['company', 'industry'],
+      },
+    },
+    {
+      name: 'rise_multi_ai_batch_deep_enrich',
+      description: 'Deep enrich multiple leads using both AIs',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max leads to process (default: 10)' },
+          status: { type: 'string', enum: ['new', 'enriched'], description: 'Filter by status (default: enriched)' },
+        },
+      },
+    },
   ],
 }));
 
@@ -276,6 +536,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await callAPI(`/api/qualify/${args.id}`, 'POST', {
           useAI: args.useAI ?? false,
         });
+        result = formatQualificationResult(result);
         break;
 
       case 'rise_scrape_google':
@@ -316,6 +577,151 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'rise_session_context':
         result = { output: runMemoryCommand('context', args.context) };
+        break;
+
+      // Batch operation handlers
+      case 'rise_bulk_create_leads':
+        if (!args.leads || !Array.isArray(args.leads)) {
+          throw new Error('leads array is required');
+        }
+        if (args.leads.length > 100) {
+          throw new Error('Maximum 100 leads per batch');
+        }
+        result = await callAPI('/api/leads/bulk', 'POST', {
+          leads: args.leads,
+        }, { timeout: 60000 });
+        break;
+
+      case 'rise_batch_enrich':
+        result = await callAPI('/api/enrichment/batch', 'POST', {
+          limit: args.limit ?? 10,
+          status: args.status ?? 'new',
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_batch_qualify':
+        result = await callAPI('/api/qualify/batch', 'POST', {
+          limit: args.limit ?? 50,
+        }, { timeout: 60000 });
+        result = formatQualificationResult(result);
+        break;
+
+      case 'rise_export_leads':
+        const exportParams = new URLSearchParams();
+        exportParams.set('limit', (args.limit ?? 100).toString());
+        if (args.status) exportParams.set('status', args.status);
+        const leadsData = await callAPI(`/api/leads?${exportParams.toString()}`);
+
+        if (args.format === 'csv' && leadsData.success) {
+          const leads = leadsData.data.leads || [];
+          const headers = ['id', 'email', 'company', 'phone', 'website', 'location', 'industry', 'status', 'source'];
+          const csv = [
+            headers.join(','),
+            ...leads.map(l => headers.map(h => `"${String(l[h] || '').replace(/"/g, '""')}"`).join(','))
+          ].join('\n');
+          result = { success: true, data: { format: 'csv', content: csv, count: leads.length } };
+        } else {
+          result = leadsData;
+        }
+        break;
+
+      case 'rise_bulk_scrape_google':
+        if (!args.queries || !Array.isArray(args.queries)) {
+          throw new Error('queries array is required');
+        }
+        if (args.queries.length > 20) {
+          throw new Error('Maximum 20 queries per batch');
+        }
+        result = await callAPI('/api/scraper/google/bulk', 'POST', {
+          queries: args.queries,
+          saveToDatabase: true,
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_enrichment_stats':
+        result = await callAPI('/api/enrichment/stats');
+        break;
+
+      case 'rise_qualification_stats':
+        result = await callAPI('/api/qualify/stats');
+        break;
+
+      // Multi-AI tool handlers
+      case 'rise_multi_ai_status':
+        result = await callAPI('/api/multi-ai/status');
+        break;
+
+      case 'rise_multi_ai_analyze':
+        result = await callAPI('/api/multi-ai/analyze', 'POST', {
+          prompt: args.prompt,
+          synthesize: args.synthesize ?? true,
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_multi_ai_consensus':
+        result = await callAPI('/api/multi-ai/consensus', 'POST', {
+          topic: args.topic,
+          context: args.context || {},
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_multi_ai_deep_enrich':
+        result = await callAPI(`/api/multi-ai/deep-enrich/${args.id}`, 'POST', {}, { timeout: 180000 });
+        // Format the result for better readability
+        if (result?.success && result?.data) {
+          const d = result.data;
+          result.formattedSummary = `
+Deep Enrichment Results for: ${d.lead?.company || 'Unknown'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Score: ${d.combinedScore}/10 (Confidence: ${Math.round(d.confidence * 100)}%)
+
+SHARED INSIGHTS (Both AIs agree):
+${d.insights?.shared?.map(i => `  • ${i}`).join('\n') || '  None'}
+
+CLAUDE'S UNIQUE INSIGHTS:
+${d.insights?.claudeUnique?.map(i => `  • ${i}`).join('\n') || '  None'}
+
+GEMINI'S UNIQUE INSIGHTS:
+${d.insights?.geminiUnique?.map(i => `  • ${i}`).join('\n') || '  None'}
+
+PRIORITY RECOMMENDATIONS:
+${d.recommendations?.priority?.map(r => `  ★ ${r}`).join('\n') || '  None'}
+
+OUTREACH STRATEGY:
+  Approach: ${d.outreachStrategy?.approach || 'N/A'}
+  Timing: ${d.outreachStrategy?.timing || 'N/A'}
+  Channels: ${d.outreachStrategy?.channels?.join(', ') || 'N/A'}
+
+RISK FACTORS:
+${d.riskFactors?.map(r => `  ⚠ ${r}`).join('\n') || '  None identified'}
+
+OPPORTUNITY SIGNALS:
+${d.opportunitySignals?.map(o => `  ✓ ${o}`).join('\n') || '  None identified'}
+`;
+        }
+        break;
+
+      case 'rise_multi_ai_outreach':
+        result = await callAPI('/api/multi-ai/outreach', 'POST', {
+          leadId: args.id,
+          style: args.style ?? 'consultative',
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_multi_ai_competitor':
+        result = await callAPI('/api/multi-ai/competitor-analysis', 'POST', {
+          company: args.company,
+          industry: args.industry,
+          website: args.website,
+        }, { timeout: 120000 });
+        break;
+
+      case 'rise_multi_ai_batch_deep_enrich':
+        result = await callAPI('/api/multi-ai/batch-deep-enrich', 'POST', {
+          limit: args.limit ?? 10,
+          status: args.status ?? 'enriched',
+        }, { timeout: 300000 });
         break;
 
       default:

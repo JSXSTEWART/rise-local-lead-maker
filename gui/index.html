@@ -1,0 +1,3439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="version" content="2.1-1734813600">
+    <title>Rise Lead Maker v2.1</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 999px;
+            font-size: 0.875rem;
+        }
+
+        .status-badge.online { background: rgba(34, 197, 94, 0.3); }
+        .status-badge.offline { background: rgba(239, 68, 68, 0.3); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Main Navigation Tabs */
+        .main-tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 2rem;
+            background: var(--card);
+            padding: 0.25rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        .main-tab {
+            padding: 0.875rem 1.25rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-light);
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .main-tab:hover { background: var(--bg); color: var(--text); }
+        .main-tab.active { background: var(--primary); color: white; box-shadow: var(--shadow); }
+
+        .main-tab svg { width: 18px; height: 18px; }
+
+        .panel { display: none; animation: fadeIn 0.3s ease; }
+        .panel.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .stat-card.total::before { background: var(--primary); }
+        .stat-card.new::before { background: var(--info); }
+        .stat-card.enriched::before { background: var(--success); }
+        .stat-card.qualified::before { background: var(--warning); }
+        .stat-card.failed::before { background: var(--danger); }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body { padding: 1.5rem; }
+
+        /* Grid layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        /* ===== ENHANCED MOBILE RESPONSIVE DESIGN ===== */
+
+        /* Tablet and below */
+        @media (max-width: 1024px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 1.5rem; }
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .form-group small {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        input[type="password"] {
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-group input {
+            flex: 1;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover { background: #16a34a; }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        .btn-warning:hover { background: #d97706; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--border); }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+        }
+
+        tr:hover { background: var(--bg); }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-new { background: #cffafe; color: #0891b2; }
+        .badge-enriched { background: #dcfce7; color: #16a34a; }
+        .badge-enriching { background: #fef3c7; color: #d97706; }
+        .badge-qualified { background: #ddd6fe; color: #7c3aed; }
+        .badge-failed { background: #fee2e2; color: #dc2626; }
+
+        .badge-a { background: #dcfce7; color: #16a34a; }
+        .badge-b { background: #dbeafe; color: #2563eb; }
+        .badge-c { background: #fef3c7; color: #d97706; }
+        .badge-d { background: #fed7aa; color: #ea580c; }
+        .badge-f { background: #fee2e2; color: #dc2626; }
+
+        /* Settings specific */
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+
+        .settings-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .api-key-input {
+            position: relative;
+        }
+
+        .api-key-input input {
+            padding-right: 100px;
+        }
+
+        .api-key-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .api-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+
+        .api-status.valid { color: var(--success); }
+        .api-status.invalid { color: var(--danger); }
+        .api-status.unknown { color: var(--text-light); }
+
+        /* Activity log */
+        .activity-log {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-item:last-child { border-bottom: none; }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+
+        .activity-message {
+            font-size: 0.875rem;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            background: var(--text);
+            color: white;
+            margin-top: 0.5rem;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Progress bars */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.5s ease;
+            background: var(--primary);
+        }
+
+        .progress-fill.success { background: var(--success); }
+        .progress-fill.warning { background: var(--warning); }
+
+        /* Grade distribution */
+        .grade-bar {
+            display: flex;
+            gap: 2px;
+            height: 24px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .grade-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .grade-segment:hover {
+            filter: brightness(1.1);
+        }
+
+        .grade-a { background: #22c55e; }
+        .grade-b { background: #3b82f6; }
+        .grade-c { background: #f59e0b; }
+        .grade-d { background: #f97316; }
+        .grade-f { background: #ef4444; }
+
+        .grade-legend {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            font-size: 0.875rem;
+        }
+
+        .grade-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .grade-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Pipeline Kanban Board */
+        .kanban-board {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 1rem;
+            min-height: 500px;
+        }
+
+        .kanban-column {
+            flex: 0 0 280px;
+            background: var(--bg);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 300px);
+        }
+
+        .kanban-header {
+            padding: 1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .kanban-header .count {
+            background: var(--card);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .kanban-column.new .kanban-header { border-bottom-color: var(--info); }
+        .kanban-column.contacted .kanban-header { border-bottom-color: var(--primary); }
+        .kanban-column.responded .kanban-header { border-bottom-color: #8b5cf6; }
+        .kanban-column.meeting .kanban-header { border-bottom-color: var(--warning); }
+        .kanban-column.proposal .kanban-header { border-bottom-color: #f97316; }
+        .kanban-column.negotiating .kanban-header { border-bottom-color: #ec4899; }
+        .kanban-column.won .kanban-header { border-bottom-color: var(--success); }
+        .kanban-column.lost .kanban-header { border-bottom-color: var(--danger); }
+
+        .kanban-cards {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .kanban-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .kanban-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kanban-card.grade-a { border-left-color: var(--success); }
+        .kanban-card.grade-b { border-left-color: var(--primary); }
+        .kanban-card.grade-c { border-left-color: var(--warning); }
+        .kanban-card.grade-d { border-left-color: #f97316; }
+        .kanban-card.grade-f { border-left-color: var(--danger); }
+
+        .kanban-card-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kanban-card-meta {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .kanban-card-actions {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .kanban-card:hover .kanban-card-actions {
+            opacity: 1;
+        }
+
+        .kanban-card-actions button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            background: var(--bg);
+            color: var(--text-light);
+        }
+
+        .kanban-card-actions button:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .modal-header .subtitle {
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            max-height: calc(90vh - 180px);
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        /* Lead Detail Layout */
+        .lead-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .lead-detail-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .container { padding: 1rem; }
+            .header { padding: 0.75rem 1rem; flex-wrap: wrap; }
+            .logo { font-size: 1.25rem; }
+            .header-actions { width: 100%; justify-content: flex-end; margin-top: 0.5rem; }
+            .status-badge { font-size: 0.75rem; padding: 0.4rem 0.8rem; }
+            .main-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .main-tabs::-webkit-scrollbar { height: 4px; }
+            .main-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+            .main-tab { padding: 0.75rem 1rem; font-size: 0.85rem; }
+            .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table { min-width: 800px; }
+            .card-header { padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+            .card-body { padding: 1rem; }
+            .card-actions { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
+            .card-actions .btn { width: 100%; }
+            .btn { padding: 0.65rem 1.25rem; font-size: 0.85rem; }
+            .btn-sm { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+            .btn-group { flex-direction: column; width: 100%; }
+            .btn-group .btn { width: 100%; }
+            .input-group { flex-direction: column; }
+            .form-actions { flex-direction: column; }
+            .form-actions .btn { width: 100%; }
+            .modal { width: 95vw !important; max-width: 95vw !important; margin: 2.5vh auto; max-height: 95vh !important; }
+            .modal-header { padding: 1rem; }
+            .modal-body { padding: 1rem; }
+            .modal-footer { padding: 1rem; flex-direction: column-reverse; gap: 0.5rem; }
+            .modal-footer .btn { width: 100%; }
+            .stat-value { font-size: 1.75rem; }
+            .grade-bar { height: 30px; }
+            .grade-segment { font-size: 0.75rem; }
+            .kanban-board { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .kanban-column { min-width: 280px; }
+            .toast { bottom: 1rem; right: 1rem; left: 1rem; max-width: none; }
+        }
+        @media (max-width: 480px) {
+            .container { padding: 0.75rem; }
+            .stats-grid { gap: 0.75rem; }
+            .stat-card { padding: 1rem; }
+            .stat-value { font-size: 1.5rem; }
+            .card { margin-bottom: 1rem; }
+            h2 { font-size: 1.25rem; }
+            h3 { font-size: 1.1rem; }
+            h4 { font-size: 1rem; }
+            .modal { width: 100vw !important; max-width: 100vw !important; margin: 0; border-radius: 0; }
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .btn, .main-tab, button { min-height: 44px; }
+            input, select, textarea { min-height: 44px; }
+            a { min-height: 44px; display: inline-flex; align-items: center; }
+        }
+        @media (max-width: 896px) and (orientation: landscape) {
+            .modal { max-height: 90vh; }
+            .header { position: relative; }
+        }
+        @media print {
+            .header, .main-tabs, .btn, .card-actions { display: none; }
+            body { background: white; }
+            .card { box-shadow: none; border: 1px solid #ddd; }
+        }
+
+        .lead-info-section {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: var(--radius);
+        }
+
+        .lead-info-section h4 {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-row .label { color: var(--text-light); }
+        .info-row .value { font-weight: 500; }
+
+        /* Interactions Timeline */
+        .interactions-timeline {
+            margin-top: 1.5rem;
+        }
+
+        .interaction-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .interaction-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .interaction-icon.call { background: #dcfce7; color: var(--success); }
+        .interaction-icon.email { background: #dbeafe; color: var(--primary); }
+        .interaction-icon.meeting { background: #fef3c7; color: var(--warning); }
+        .interaction-icon.note { background: #f3e8ff; color: #8b5cf6; }
+        .interaction-icon.stage_change { background: var(--bg); color: var(--text-light); }
+
+        .interaction-content { flex: 1; }
+        .interaction-subject { font-weight: 500; margin-bottom: 0.25rem; }
+        .interaction-text { font-size: 0.875rem; color: var(--text-light); }
+        .interaction-time { font-size: 0.75rem; color: var(--text-light); margin-top: 0.5rem; }
+
+        /* Email Composer */
+        .email-composer {
+            background: var(--bg);
+            border-radius: var(--radius);
+            padding: 1rem;
+        }
+
+        .email-field {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .email-field label {
+            width: 60px;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .email-field input, .email-field select {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 0.5rem;
+        }
+
+        .email-body textarea {
+            width: 100%;
+            min-height: 200px;
+            border: none;
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        /* Pipeline Stats */
+        .pipeline-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pipeline-stat {
+            background: var(--card);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .pipeline-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .pipeline-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+        }
+
+        /* Stage Select Dropdown */
+        .stage-select {
+            display: inline-flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .stage-btn {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg);
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+        }
+
+        .stage-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .stage-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Quick actions */
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            flex: 1;
+            min-width: 200px;
+            padding: 1.5rem;
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .quick-action:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .quick-action h4 {
+            margin-bottom: 0.5rem;
+        }
+
+        .quick-action p {
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            Rise Lead Maker <span style="font-size: 0.7rem; opacity: 0.8; margin-left: 0.5rem;">v2.1</span>
+        </div>
+        <div class="header-actions">
+            <div id="apiStatus" class="status-badge">
+                <span class="status-dot"></span>
+                <span>Checking...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Main Navigation Tabs -->
+        <div class="main-tabs">
+            <button class="main-tab active" data-tab="dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Dashboard
+            </button>
+            <button class="main-tab" data-tab="leads">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                Leads
+            </button>
+            <button class="main-tab" data-tab="scraper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                Scraper
+            </button>
+            <button class="main-tab" data-tab="enrichment">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                </svg>
+                Enrichment
+            </button>
+            <button class="main-tab" data-tab="qualify">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Qualification
+            </button>
+            <button class="main-tab" data-tab="pipeline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 3v18"/><path d="M15 3v18"/>
+                </svg>
+                Pipeline
+            </button>
+            <button class="main-tab" data-tab="multi-ai">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                    <path d="M8 12h8" stroke-dasharray="2 2"/>
+                </svg>
+                Multi-AI
+            </button>
+            <button class="main-tab" data-tab="settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+            </button>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div id="dashboard" class="panel active">
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="stat-label">Total Leads</div>
+                    <div class="stat-value" id="statTotal">-</div>
+                </div>
+                <div class="stat-card new">
+                    <div class="stat-label">New</div>
+                    <div class="stat-value" id="statNew">-</div>
+                </div>
+                <div class="stat-card enriched">
+                    <div class="stat-label">Enriched</div>
+                    <div class="stat-value" id="statEnriched">-</div>
+                </div>
+                <div class="stat-card qualified">
+                    <div class="stat-label">Qualified</div>
+                    <div class="stat-value" id="statQualified">-</div>
+                </div>
+                <div class="stat-card failed">
+                    <div class="stat-label">Failed</div>
+                    <div class="stat-value" id="statFailed">-</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Grade Distribution</span>
+                        <span id="avgScore" class="badge badge-b">Avg: --</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grade-bar" id="gradeBar">
+                            <div class="grade-segment grade-a" style="width: 0%">A</div>
+                            <div class="grade-segment grade-b" style="width: 0%">B</div>
+                            <div class="grade-segment grade-c" style="width: 0%">C</div>
+                            <div class="grade-segment grade-d" style="width: 0%">D</div>
+                            <div class="grade-segment grade-f" style="width: 0%">F</div>
+                        </div>
+                        <div class="grade-legend" id="gradeLegend"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Quick Actions</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="enrichNewLeads()">Enrich New Leads</button>
+                            <button class="btn btn-success" onclick="qualifyLeads()">Qualify Leads</button>
+                            <button class="btn btn-warning" onclick="retryFailed()">Retry Failed</button>
+                            <button class="btn btn-secondary" onclick="refreshStats()">Refresh Stats</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Top Leads by Review Count</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Location</th>
+                                    <th>Rating</th>
+                                    <th>Reviews</th>
+                                    <th>Grade</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topLeadsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads Panel -->
+        <div id="leads" class="panel">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Lead Management</span>
+                    <div class="btn-group">
+                        <input type="text" id="leadSearch" placeholder="Search leads..." style="width: 250px;">
+                        <select id="leadStatusFilter" style="width: 150px;">
+                            <option value="">All Status</option>
+                            <option value="new">New</option>
+                            <option value="enriched">Enriched</option>
+                            <option value="enriching">Enriching</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                        <select id="leadGradeFilter" style="width: 120px;">
+                            <option value="">All Grades</option>
+                            <option value="A">A Grade</option>
+                            <option value="B">B Grade</option>
+                            <option value="C">C Grade</option>
+                            <option value="D">D Grade</option>
+                            <option value="F">F Grade</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="searchLeads()">Search</button>
+                        <button class="btn btn-secondary" onclick="exportLeads()">Export CSV</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Phone</th>
+                                    <th>Website</th>
+                                    <th>Location</th>
+                                    <th>Industry</th>
+                                    <th>Score</th>
+                                    <th>Grade</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadsTable"></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="leadsCount">Showing 0 leads</span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-secondary" id="prevPage" onclick="changePage(-1)">Previous</button>
+                            <span id="pageInfo" style="padding: 0.5rem 1rem;">Page 1</span>
+                            <button class="btn btn-sm btn-secondary" id="nextPage" onclick="changePage(1)">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scraper Panel -->
+        <div id="scraper" class="panel">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Google Places Scraper</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Search Query</label>
+                            <input type="text" id="scraperQuery" placeholder="e.g., plumbers in Austin TX">
+                            <small>Include business type and location for best results</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Search Radius (meters)</label>
+                            <input type="number" id="scraperRadius" value="10000" min="1000" max="50000">
+                            <small>1000 - 50000 meters</small>
+                        </div>
+                        <button class="btn btn-primary" onclick="runScraper()" id="scraperBtn">
+                            Start Scraping
+                        </button>
+                        <div id="scraperResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Bulk Scraper</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Queries (one per line)</label>
+                            <textarea id="bulkQueries" rows="6" placeholder="plumbers in Austin TX&#10;electricians in Houston TX&#10;HVAC in Dallas TX"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="runBulkScraper()" id="bulkScraperBtn">
+                            Start Bulk Scrape
+                        </button>
+                        <div id="bulkScraperResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Scraper Presets</span>
+                </div>
+                <div class="card-body">
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="usePreset('texas-home-services')">
+                            <h4>Texas Home Services</h4>
+                            <p>Plumbers, Electricians, HVAC across major TX cities</p>
+                        </div>
+                        <div class="quick-action" onclick="usePreset('austin-all')">
+                            <h4>Austin Full Sweep</h4>
+                            <p>All service categories in Austin area</p>
+                        </div>
+                        <div class="quick-action" onclick="usePreset('custom')">
+                            <h4>Custom Preset</h4>
+                            <p>Create your own scraping preset</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrichment Panel -->
+        <div id="enrichment" class="panel">
+            <div class="stats-grid">
+                <div class="stat-card enriched">
+                    <div class="stat-label">Enriched</div>
+                    <div class="stat-value" id="enrichedCount">-</div>
+                </div>
+                <div class="stat-card new">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value" id="pendingEnrich">-</div>
+                </div>
+                <div class="stat-card failed">
+                    <div class="stat-label">Failed</div>
+                    <div class="stat-value" id="failedEnrich">-</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Batch Enrichment</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Batch Size</label>
+                            <input type="number" id="enrichBatchSize" value="10" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Target Status</label>
+                            <select id="enrichTarget">
+                                <option value="new">New Leads</option>
+                                <option value="failed">Failed (Retry)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="runBatchEnrich()" id="enrichBtn">
+                            Start Enrichment
+                        </button>
+                        <div id="enrichResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Enrichment Progress</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Overall Progress</span>
+                                <span id="enrichPercent">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill success" id="enrichProgress" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div id="enrichLog" class="activity-log"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Qualification Panel -->
+        <div id="qualify" class="panel">
+            <div class="stats-grid">
+                <div class="stat-card qualified">
+                    <div class="stat-label">Qualified</div>
+                    <div class="stat-value" id="qualifiedCount">-</div>
+                </div>
+                <div class="stat-card new">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value" id="pendingQualify">-</div>
+                </div>
+                <div class="stat-card enriched">
+                    <div class="stat-label">Avg Score</div>
+                    <div class="stat-value" id="avgScoreVal">-</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Batch Qualification</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Batch Size</label>
+                            <input type="number" id="qualifyBatchSize" value="50" min="1" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Minimum Score Filter</label>
+                            <input type="number" id="minScoreFilter" value="0" min="0" max="100">
+                        </div>
+                        <button class="btn btn-success" onclick="runBatchQualify()" id="qualifyBtn">
+                            Start Qualification
+                        </button>
+                        <div id="qualifyResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Grade Distribution</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grade-bar" id="qualifyGradeBar">
+                            <div class="grade-segment grade-a" style="width: 0%">A</div>
+                            <div class="grade-segment grade-b" style="width: 0%">B</div>
+                            <div class="grade-segment grade-c" style="width: 0%">C</div>
+                            <div class="grade-segment grade-d" style="width: 0%">D</div>
+                            <div class="grade-segment grade-f" style="width: 0%">F</div>
+                        </div>
+                        <div class="grade-legend" id="qualifyGradeLegend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Panel -->
+        <div id="pipeline" class="panel">
+            <div class="pipeline-stats" id="pipelineStats">
+                <div class="pipeline-stat">
+                    <div class="pipeline-stat-value" id="pipelineTotal">-</div>
+                    <div class="pipeline-stat-label">Total Leads</div>
+                </div>
+                <div class="pipeline-stat">
+                    <div class="pipeline-stat-value" id="pipelineActive">-</div>
+                    <div class="pipeline-stat-label">Active</div>
+                </div>
+                <div class="pipeline-stat">
+                    <div class="pipeline-stat-value" id="pipelineWon">-</div>
+                    <div class="pipeline-stat-label">Won</div>
+                </div>
+                <div class="pipeline-stat">
+                    <div class="pipeline-stat-value" id="pipelineLost">-</div>
+                    <div class="pipeline-stat-label">Lost</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Sales Pipeline</span>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-secondary" onclick="loadPipeline()">Refresh</button>
+                        <button class="btn btn-sm btn-primary" onclick="openEmailComposer()">Compose Email</button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0.5rem;">
+                    <div class="kanban-board" id="kanbanBoard">
+                        <div class="kanban-column new">
+                            <div class="kanban-header">
+                                <span>New</span>
+                                <span class="count" id="countNew">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageNew"></div>
+                        </div>
+                        <div class="kanban-column contacted">
+                            <div class="kanban-header">
+                                <span>Contacted</span>
+                                <span class="count" id="countContacted">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageContacted"></div>
+                        </div>
+                        <div class="kanban-column responded">
+                            <div class="kanban-header">
+                                <span>Responded</span>
+                                <span class="count" id="countResponded">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageResponded"></div>
+                        </div>
+                        <div class="kanban-column meeting">
+                            <div class="kanban-header">
+                                <span>Meeting</span>
+                                <span class="count" id="countMeeting">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageMeeting"></div>
+                        </div>
+                        <div class="kanban-column proposal">
+                            <div class="kanban-header">
+                                <span>Proposal</span>
+                                <span class="count" id="countProposal">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageProposal"></div>
+                        </div>
+                        <div class="kanban-column negotiating">
+                            <div class="kanban-header">
+                                <span>Negotiating</span>
+                                <span class="count" id="countNegotiating">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageNegotiating"></div>
+                        </div>
+                        <div class="kanban-column won">
+                            <div class="kanban-header">
+                                <span>Won</span>
+                                <span class="count" id="countWon">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageWon"></div>
+                        </div>
+                        <div class="kanban-column lost">
+                            <div class="kanban-header">
+                                <span>Lost</span>
+                                <span class="count" id="countLost">0</span>
+                            </div>
+                            <div class="kanban-cards" id="stageLost"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lead Detail Modal -->
+        <div class="modal-overlay" id="leadDetailModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div>
+                        <h2 id="modalLeadName">Lead Name</h2>
+                        <div class="subtitle" id="modalLeadIndustry">Industry</div>
+                    </div>
+                    <button class="modal-close" onclick="closeModal('leadDetailModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="lead-detail-grid">
+                        <div>
+                            <div class="lead-info-section">
+                                <h4>Contact Info</h4>
+                                <div class="info-row">
+                                    <span class="label">Phone</span>
+                                    <span class="value" id="modalPhone">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Email</span>
+                                    <span class="value" id="modalEmail">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Website</span>
+                                    <span class="value" id="modalWebsite">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Location</span>
+                                    <span class="value" id="modalLocation">-</span>
+                                </div>
+                            </div>
+                            <div class="lead-info-section" style="margin-top: 1rem;">
+                                <h4>Qualification</h4>
+                                <div class="info-row">
+                                    <span class="label">Score</span>
+                                    <span class="value" id="modalScore">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Grade</span>
+                                    <span class="value" id="modalGrade">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Rating</span>
+                                    <span class="value" id="modalRating">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Reviews</span>
+                                    <span class="value" id="modalReviews">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="lead-info-section">
+                                <h4>Pipeline Stage</h4>
+                                <div class="stage-select" id="stageSelect"></div>
+                            </div>
+                            <div class="lead-info-section" style="margin-top: 1rem;">
+                                <h4>Quick Actions</h4>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-primary" onclick="openEmailForLead()">Send Email</button>
+                                    <button class="btn btn-sm btn-success" onclick="logCall()">Log Call</button>
+                                    <button class="btn btn-sm btn-warning" onclick="generateProposal()">Generate Proposal</button>
+                                    <button class="btn btn-sm btn-secondary" onclick="addNote()">Add Note</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="interactions-timeline">
+                        <h4 style="margin-bottom: 1rem;">Interaction History</h4>
+                        <div id="interactionsTimeline">
+                            <p style="color: var(--text-light); text-align: center;">No interactions yet</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('leadDetailModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Composer Modal -->
+        <div class="modal-overlay" id="emailComposerModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div>
+                        <h2>Compose Email</h2>
+                        <div class="subtitle" id="emailRecipientName">Select a lead</div>
+                    </div>
+                    <button class="modal-close" onclick="closeModal('emailComposerModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="email-composer">
+                        <div class="email-field">
+                            <label>To:</label>
+                            <input type="email" id="emailTo" placeholder="recipient@example.com">
+                        </div>
+                        <div class="email-field">
+                            <label>Template:</label>
+                            <select id="emailTemplate" onchange="loadEmailTemplate()">
+                                <option value="">Select template...</option>
+                                <option value="intro">Introduction</option>
+                                <option value="follow_up">Follow Up</option>
+                                <option value="proposal">Proposal</option>
+                                <option value="meeting">Meeting Request</option>
+                                <option value="thank_you">Thank You</option>
+                            </select>
+                        </div>
+                        <div class="email-field">
+                            <label>Subject:</label>
+                            <input type="text" id="emailSubject" placeholder="Email subject...">
+                        </div>
+                        <div class="email-body">
+                            <textarea id="emailBody" placeholder="Write your message..."></textarea>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-secondary" onclick="generateEmailWithAI()">
+                            Generate with AI
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('emailComposerModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="sendEmail()">Send Email</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proposal Modal -->
+        <div class="modal-overlay" id="proposalModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div>
+                        <h2>AI-Generated Proposal</h2>
+                        <div class="subtitle" id="proposalLeadName">Lead Name</div>
+                    </div>
+                    <button class="modal-close" onclick="closeModal('proposalModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Proposal Type</label>
+                        <select id="proposalType">
+                            <option value="website">Website Design & Development</option>
+                            <option value="seo">SEO Services</option>
+                            <option value="marketing">Digital Marketing</option>
+                            <option value="custom">Custom Services</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estimated Value ($)</label>
+                        <input type="number" id="proposalValue" value="5000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Additional Context</label>
+                        <textarea id="proposalContext" rows="3" placeholder="Any specific details or requirements..."></textarea>
+                    </div>
+                    <div id="proposalContent" style="display: none;">
+                        <h4 style="margin: 1rem 0;">Generated Proposal:</h4>
+                        <div id="proposalText" style="background: var(--bg); padding: 1rem; border-radius: var(--radius); white-space: pre-wrap; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('proposalModal')">Cancel</button>
+                    <button class="btn btn-warning" onclick="generateProposalContent()" id="generateProposalBtn">Generate Proposal</button>
+                    <button class="btn btn-primary" onclick="saveProposal()" id="saveProposalBtn" style="display: none;">Save Proposal</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Note Modal -->
+        <div class="modal-overlay" id="noteModal">
+            <div class="modal" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2>Add Note</h2>
+                    <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Note Subject</label>
+                        <input type="text" id="noteSubject" placeholder="Brief subject...">
+                    </div>
+                    <div class="form-group">
+                        <label>Content</label>
+                        <textarea id="noteContent" rows="5" placeholder="Note details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-AI Panel -->
+        <div id="multi-ai" class="panel">
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="stat-label">AI Status</div>
+                    <div class="stat-value" id="multiAIStatus">-</div>
+                </div>
+                <div class="stat-card enriched">
+                    <div class="stat-label">Claude</div>
+                    <div class="stat-value" id="claudeStatus">-</div>
+                </div>
+                <div class="stat-card new">
+                    <div class="stat-label">Gemini</div>
+                    <div class="stat-value" id="geminiStatus">-</div>
+                </div>
+                <div class="stat-card qualified">
+                    <div class="stat-label">Deep Enriched</div>
+                    <div class="stat-value" id="deepEnrichedCount">0</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Deep Enrichment Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Deep Lead Enrichment</span>
+                        <span class="badge badge-b">Claude + Gemini</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 1rem; color: var(--text-light);">
+                            Analyze leads using both Claude and Gemini for comprehensive insights,
+                            combined scoring, and strategic recommendations.
+                        </p>
+                        <div class="form-group">
+                            <label>Select Lead</label>
+                            <select id="deepEnrichLeadSelect" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                                <option value="">Loading leads...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="runDeepEnrich()" id="deepEnrichBtn" style="width: 100%;">
+                            Run Deep Enrichment
+                        </button>
+                        <div id="deepEnrichResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <!-- AI Outreach Generator -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">AI Outreach Generator</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 1rem; color: var(--text-light);">
+                            Generate personalized outreach emails using both AIs for best results.
+                        </p>
+                        <div class="form-group">
+                            <label>Select Lead</label>
+                            <select id="outreachLeadSelect" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                                <option value="">Loading leads...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Style</label>
+                            <select id="outreachStyle" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                                <option value="consultative">Consultative (Recommended)</option>
+                                <option value="formal">Formal</option>
+                                <option value="casual">Casual</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="generateOutreach()" id="outreachBtn" style="width: 100%;">
+                            Generate Outreach
+                        </button>
+                        <div id="outreachResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 1.5rem;">
+                <!-- Competitor Analysis -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Competitor Analysis</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 1rem; color: var(--text-light);">
+                            Analyze competitive landscape using both AIs for comprehensive market intelligence.
+                        </p>
+                        <div class="form-group">
+                            <label>Company Name</label>
+                            <input type="text" id="competitorCompany" placeholder="e.g., Better Fence Company" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                        </div>
+                        <div class="form-group">
+                            <label>Industry</label>
+                            <input type="text" id="competitorIndustry" placeholder="e.g., Construction, Fencing" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                        </div>
+                        <div class="form-group">
+                            <label>Website (optional)</label>
+                            <input type="text" id="competitorWebsite" placeholder="https://example.com" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                        </div>
+                        <button class="btn btn-warning" onclick="runCompetitorAnalysis()" id="competitorBtn" style="width: 100%;">
+                            Analyze Competitors
+                        </button>
+                        <div id="competitorResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <!-- AI Consensus -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">AI Consensus Analysis</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 1rem; color: var(--text-light);">
+                            Ask both AIs a question and get a synthesized consensus answer.
+                        </p>
+                        <div class="form-group">
+                            <label>Your Question or Topic</label>
+                            <textarea id="consensusPrompt" rows="3" placeholder="e.g., What's the best approach for reaching fence company owners in Texas?" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); resize: vertical;"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="runConsensus()" id="consensusBtn" style="width: 100%;">
+                            Get AI Consensus
+                        </button>
+                        <div id="consensusResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Deep Enrich -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <span class="card-title">Batch Deep Enrichment</span>
+                    <span class="badge badge-c">Process Multiple Leads</span>
+                </div>
+                <div class="card-body">
+                    <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Number of Leads</label>
+                            <input type="number" id="batchDeepLimit" value="5" min="1" max="20" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Lead Status</label>
+                            <select id="batchDeepStatus" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
+                                <option value="enriched">Enriched</option>
+                                <option value="new">New</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary" onclick="runBatchDeepEnrich()" id="batchDeepBtn">
+                            Run Batch Deep Enrich
+                        </button>
+                    </div>
+                    <div id="batchDeepResult" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+
+            <!-- Deep Enrichment Results Modal -->
+            <div id="deepEnrichModal" class="modal">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2 id="deepEnrichModalTitle">Deep Enrichment Results</h2>
+                        <button class="modal-close" onclick="closeModal('deepEnrichModal')">&times;</button>
+                    </div>
+                    <div class="modal-body" id="deepEnrichModalBody">
+                        <!-- Content populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings" class="panel">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">API Configuration</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="settings-section">
+                            <h3>Anthropic API</h3>
+                            <div class="form-group">
+                                <label>
+                                    API Key
+                                    <span id="anthropicStatus" class="api-status unknown">Unknown</span>
+                                </label>
+                                <div class="api-key-input">
+                                    <input type="password" id="anthropicKey" placeholder="sk-ant-...">
+                                    <button class="api-key-toggle" onclick="toggleKeyVisibility('anthropicKey')">Show</button>
+                                </div>
+                                <small>Used for AI-powered enrichment and qualification</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Google Places API</h3>
+                            <div class="form-group">
+                                <label>
+                                    API Key
+                                    <span id="googleStatus" class="api-status unknown">Unknown</span>
+                                </label>
+                                <div class="api-key-input">
+                                    <input type="password" id="googleKey" placeholder="AIza...">
+                                    <button class="api-key-toggle" onclick="toggleKeyVisibility('googleKey')">Show</button>
+                                </div>
+                                <small>Required for Google Places scraping</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Gemini API (Optional)</h3>
+                            <div class="form-group">
+                                <label>
+                                    API Key
+                                    <span id="geminiStatus" class="api-status unknown">Unknown</span>
+                                </label>
+                                <div class="api-key-input">
+                                    <input type="password" id="geminiKey" placeholder="AIza...">
+                                    <button class="api-key-toggle" onclick="toggleKeyVisibility('geminiKey')">Show</button>
+                                </div>
+                                <small>Alternative AI provider for enrichment</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Clay API (Optional)</h3>
+                            <div class="form-group">
+                                <label>
+                                    API Key
+                                    <span id="clayStatus" class="api-status unknown">Unknown</span>
+                                </label>
+                                <div class="api-key-input">
+                                    <input type="password" id="clayKey" placeholder="clay_...">
+                                    <button class="api-key-toggle" onclick="toggleKeyVisibility('clayKey')">Show</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Clay Table ID</label>
+                                <input type="text" id="clayTableId" placeholder="tbl_...">
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                            <button class="btn btn-secondary" onclick="loadSettings()">Reload</button>
+                            <button class="btn btn-warning" onclick="testConnections()">Test Connections</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Database & System</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="settings-section">
+                            <h3>Database Connection</h3>
+                            <div class="form-group">
+                                <label>Host</label>
+                                <input type="text" id="dbHost" value="localhost">
+                            </div>
+                            <div class="form-group">
+                                <label>Database Name</label>
+                                <input type="text" id="dbName" value="rise_leads">
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="dbUser">
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="dbPass">
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>System Info</h3>
+                            <div style="font-size: 0.875rem; color: var(--text-light);">
+                                <p><strong>API Endpoint:</strong> <span id="apiEndpoint">-</span></p>
+                                <p><strong>Environment:</strong> <span id="envMode">-</span></p>
+                                <p><strong>Version:</strong> <span id="appVersion">-</span></p>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Danger Zone</h3>
+                            <div class="btn-group">
+                                <button class="btn btn-danger btn-sm" onclick="clearFailedLeads()">Clear Failed Leads</button>
+                                <button class="btn btn-danger btn-sm" onclick="resetEnrichment()">Reset Enrichment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Google Sheets Integration (Optional)</span>
+                </div>
+                <div class="card-body">
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Service Account Email</label>
+                            <input type="text" id="sheetsEmail" placeholder="your-service@project.iam.gserviceaccount.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Sheet ID</label>
+                            <input type="text" id="sheetsId" placeholder="1ABC...xyz">
+                        </div>
+                        <div class="form-group">
+                            <label>Private Key</label>
+                            <textarea id="sheetsPrivateKey" rows="3" placeholder="-----BEGIN PRIVATE KEY-----..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        console.log('🚀 Rise Lead Maker GUI v2.0 - Loaded at', new Date().toISOString());
+        const API_BASE = '/api';
+        let currentPage = 1;
+        const pageSize = 20;
+
+        // Tab switching
+        document.querySelectorAll('.main-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+
+                // Load data for specific tabs
+                if (tab.dataset.tab === 'dashboard') refreshStats();
+                if (tab.dataset.tab === 'leads') searchLeads();
+                if (tab.dataset.tab === 'enrichment') loadEnrichmentStats();
+                if (tab.dataset.tab === 'qualify') loadQualificationStats();
+                if (tab.dataset.tab === 'pipeline') loadPipeline();
+                if (tab.dataset.tab === 'multi-ai') loadMultiAIStatus();
+                if (tab.dataset.tab === 'settings') loadSettings();
+            });
+        });
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ===== SECURITY UTILITIES =====
+
+        /**
+         * Sanitize user input before DOM insertion (XSS protection)
+         */
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // API helpers
+        const activeRequests = new Map();
+
+        async function apiCall(endpoint, options = {}) {
+            const timeout = options.timeout || 30000; // 30s default
+            const controller = new AbortController();
+            const requestId = `${endpoint}-${Date.now()}`;
+
+            try {
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+                activeRequests.set(requestId, controller);
+
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: { 'Content-Type': 'application/json' },
+                    ...options,
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+                activeRequests.delete(requestId);
+
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+
+                return await res.json();
+            } catch (err) {
+                activeRequests.delete(requestId);
+
+                if (err.name === 'AbortError') {
+                    console.error(`[API] Request timeout: ${endpoint}`);
+                    showToast('Request timed out. Please try again.', 'error');
+                } else {
+                    console.error('[API] Error:', err);
+                    showToast('API Error: ' + err.message, 'error');
+                }
+                return null;
+            }
+        }
+
+        function cancelAllRequests() {
+            activeRequests.forEach(controller => controller.abort());
+            activeRequests.clear();
+        }
+
+        // ===== API RESPONSE UTILITIES =====
+
+        /**
+         * Validate API response structure
+         */
+        function validateResponse(res, requiredFields = []) {
+            if (!res) {
+                console.error('[API] Null response received');
+                return null;
+            }
+
+            if (!res.success) {
+                console.error('[API] Request failed:', res.error);
+                showToast(res.error?.message || 'Request failed', 'error');
+                return null;
+            }
+
+            if (!res.data) {
+                console.error('[API] No data in response');
+                return null;
+            }
+
+            for (const field of requiredFields) {
+                if (!(field in res.data)) {
+                    console.error(`[API] Missing required field: ${field}`);
+                    return null;
+                }
+            }
+
+            return res.data;
+        }
+
+        /**
+         * Extract leads array from API response
+         */
+        function getLeadsFromResponse(res) {
+            const data = validateResponse(res, ['leads']);
+            return data?.leads || [];
+        }
+
+        /**
+         * Extract pagination from API response with safe defaults
+         */
+        function getPaginationFromResponse(res) {
+            const data = validateResponse(res);
+            return data?.pagination || {
+                page: 1,
+                totalPages: 1,
+                total: 0,
+                limit: 20
+            };
+        }
+
+        /**
+         * Normalize lead object (handles snake_case and camelCase)
+         */
+        function normalizeLead(lead) {
+            return {
+                id: lead.id,
+                email: lead.email,
+                firstName: lead.first_name || lead.firstName,
+                lastName: lead.last_name || lead.lastName,
+                company: lead.company,
+                title: lead.title,
+                phone: lead.phone,
+                website: lead.website,
+                linkedinUrl: lead.linkedin_url || lead.linkedinUrl,
+                location: lead.location,
+                industry: lead.industry,
+                companySize: lead.company_size || lead.companySize,
+                source: lead.source,
+                status: lead.status,
+                pipelineStage: lead.pipeline_stage || lead.pipelineStage,
+                qualificationScore: lead.qualification_score || lead.qualificationScore,
+                qualificationGrade: lead.qualification_grade || lead.qualificationGrade,
+                metadata: lead.metadata || {},
+                createdAt: lead.created_at || lead.createdAt,
+            };
+        }
+
+        /**
+         * Wrapper for button loading states
+         */
+        async function withButtonLoading(buttonId, asyncFn, loadingText = 'Loading...') {
+            const btn = document.getElementById(buttonId);
+            if (!btn) {
+                console.error(`Button not found: ${buttonId}`);
+                return;
+            }
+
+            const originalText = btn.textContent;
+            const wasDisabled = btn.disabled;
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner"></span> ${loadingText}`;
+
+                return await asyncFn();
+            } finally {
+                btn.disabled = wasDisabled;
+                btn.textContent = originalText;
+            }
+        }
+
+        // Check API health
+        async function checkHealth() {
+            const res = await fetch('/health');
+            const data = await res.json();
+            const badge = document.getElementById('apiStatus');
+            if (data.status === 'healthy') {
+                badge.className = 'status-badge online';
+                badge.innerHTML = '<span class="status-dot"></span><span>API Online</span>';
+            } else {
+                badge.className = 'status-badge offline';
+                badge.innerHTML = '<span class="status-dot"></span><span>API Offline</span>';
+            }
+            return data;
+        }
+
+        // Dashboard
+        async function refreshStats() {
+            const [stats, qualStats] = await Promise.all([
+                apiCall('/leads/stats'),
+                apiCall('/qualify/stats')
+            ]);
+
+            if (stats?.data) {
+                document.getElementById('statTotal').textContent = stats.data.total || 0;
+                document.getElementById('statNew').textContent = stats.data.byStatus?.new || 0;
+                document.getElementById('statEnriched').textContent = stats.data.byStatus?.enriched || 0;
+                document.getElementById('statFailed').textContent = stats.data.byStatus?.failed || 0;
+            }
+
+            if (qualStats?.data) {
+                document.getElementById('statQualified').textContent = qualStats.data.scored || 0;
+                document.getElementById('avgScore').textContent = `Avg: ${qualStats.data.averageScore || 0}`;
+                updateGradeBar('gradeBar', 'gradeLegend', qualStats.data.gradeDistribution, qualStats.data.scored);
+            }
+
+            loadTopLeads();
+        }
+
+        function updateGradeBar(barId, legendId, dist, total) {
+            if (!dist || !total) return;
+            const bar = document.getElementById(barId);
+            const legend = document.getElementById(legendId);
+
+            const grades = ['A', 'B', 'C', 'D', 'F'];
+            bar.innerHTML = grades.map(g => {
+                const count = dist[g] || 0;
+                const pct = total > 0 ? (count / total * 100).toFixed(1) : 0;
+                return `<div class="grade-segment grade-${g.toLowerCase()}" style="width: ${pct}%">${pct > 5 ? g : ''}</div>`;
+            }).join('');
+
+            legend.innerHTML = grades.map(g => {
+                const count = dist[g] || 0;
+                return `<div class="grade-legend-item">
+                    <div class="grade-dot grade-${g.toLowerCase()}"></div>
+                    <span>${g}: ${count}</span>
+                </div>`;
+            }).join('');
+        }
+
+        async function loadTopLeads() {
+            const res = await apiCall('/leads?limit=10&sortBy=metadata.reviewCount&sortOrder=desc');
+            const leads = getLeadsFromResponse(res);
+
+            if (leads.length > 0) {
+                const tbody = document.getElementById('topLeadsTable');
+                tbody.innerHTML = leads.map(lead => {
+                    const normalized = normalizeLead(lead);
+                    return `
+                        <tr>
+                            <td><strong>${sanitizeHTML(normalized.company) || '-'}</strong></td>
+                            <td>${sanitizeHTML(normalized.location?.split(',').slice(0,2).join(',')) || '-'}</td>
+                            <td>${lead.metadata?.rating || '-'}</td>
+                            <td>${lead.metadata?.reviewCount || '-'}</td>
+                            <td>${normalized.qualificationScore ? `<span class="badge badge-${(normalized.qualificationGrade || 'c').toLowerCase()}">${normalized.qualificationGrade}</span>` : '-'}</td>
+                            <td><span class="badge badge-${normalized.status}">${normalized.status}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Leads management
+        async function searchLeads() {
+            console.log('[GUI] searchLeads() called - UPDATED VERSION v2.1');
+            showToast('Loading leads... (v2.1)', 'info');
+            const query = document.getElementById('leadSearch').value;
+            const status = document.getElementById('leadStatusFilter').value;
+            const grade = document.getElementById('leadGradeFilter').value;
+
+            let endpoint = `/leads?page=${currentPage}&limit=${pageSize}`;
+            if (query) endpoint += `&search=${encodeURIComponent(query)}`;
+            if (status) endpoint += `&status=${status}`;
+            if (grade) endpoint += `&grade=${grade}`;
+
+            console.log('[GUI] Calling API endpoint:', endpoint);
+            const res = await apiCall(endpoint);
+            console.log('[GUI] API response:', res);
+            const leads = getLeadsFromResponse(res);
+            console.log('[GUI] Extracted leads:', leads?.length || 0);
+            const pagination = getPaginationFromResponse(res);
+            console.log('[GUI] Pagination:', pagination);
+
+            if (leads.length > 0) {
+                renderLeadsTable(leads.map(normalizeLead));
+                document.getElementById('leadsCount').textContent = `Showing ${leads.length} of ${pagination.total} leads`;
+                document.getElementById('pageInfo').textContent = `Page ${pagination.page} of ${pagination.totalPages}`;
+
+                // Update pagination buttons
+                document.getElementById('prevPage').disabled = pagination.page <= 1;
+                document.getElementById('nextPage').disabled = pagination.page >= pagination.totalPages;
+            } else if (res) {
+                document.getElementById('leadsTable').innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No leads found</td></tr>';
+            }
+        }
+
+        function renderLeadsTable(leads) {
+            const tbody = document.getElementById('leadsTable');
+            tbody.innerHTML = leads.map(lead => {
+                const enrichBadge = (lead.metadata?.paymentOptions || lead.metadata?.priceRange || lead.metadata?.reviews?.length) ?
+                    `<span title="Enriched" style="color:gold">✨</span>` : '';
+                return `
+                <tr>
+                    <td><strong>${sanitizeHTML(lead.company) || '-'}</strong> ${enrichBadge}</td>
+                    <td>${sanitizeHTML(lead.phone) || '-'}</td>
+                    <td>${lead.website ? `<a href="${sanitizeHTML(lead.website)}" target="_blank">Visit</a>` : '-'}</td>
+                    <td>${sanitizeHTML(lead.location?.split(',').slice(0,2).join(',')) || '-'}</td>
+                    <td>${sanitizeHTML(lead.industry) || '-'}</td>
+                    <td>${lead.qualificationScore || '-'}</td>
+                    <td>${lead.qualificationGrade ? `<span class="badge badge-${lead.qualificationGrade.toLowerCase()}">${lead.qualificationGrade}</span>` : '-'}</td>
+                    <td><span class="badge badge-${lead.status}">${lead.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="showLeadDetails(${lead.id})">Details</button>
+                        <button class="btn btn-sm btn-secondary" onclick="enrichLead('${lead.id}')">Enrich</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        async function showLeadDetails(leadId) {
+            const res = await apiCall(`/leads/${leadId}`);
+            if (!res?.data) return;
+            const lead = res.data;
+            const m = lead.metadata || {};
+            let html = '';
+            if (m.paymentOptions) html += `<div style="margin:15px 0;padding:12px;background:var(--surface);border-radius:8px"><h4>💳 Payments</h4>${m.paymentOptions.acceptsCreditCards?'✓ Cards ':''} ${m.paymentOptions.acceptsNfc?'✓ NFC ':''}</div>`;
+            if (m.priceRange) html += `<div style="margin:15px 0;padding:12px;background:var(--surface);border-radius:8px"><h4>💰 Price</h4>$${m.priceRange.startPrice?.units||'?'} - $${m.priceRange.endPrice?.units||'?'}</div>`;
+            if (m.parkingOptions) html += `<div style="margin:15px 0;padding:12px;background:var(--surface);border-radius:8px"><h4>🅿 Parking</h4>${m.parkingOptions.valetParking?'✓ Valet ':''} ${m.parkingOptions.paidGarageParking?'✓ Garage ':''}</div>`;
+            if (m.reviews?.length) html += `<div style="margin:15px 0;padding:12px;background:var(--surface);border-radius:8px"><h4>⭐ Reviews (${m.reviews.length})</h4>${m.reviews.slice(0,2).map(r=>`<div style="margin:8px 0;padding:8px;background:var(--bg);border-left:3px solid var(--primary)"><strong>${'★'.repeat(r.rating)}</strong> ${sanitizeHTML(r.authorAttribution?.displayName||'User')}<p>${sanitizeHTML(r.text?.text?.substring(0,150)||'')}...</p></div>`).join('')}</div>`;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `<div class="modal" style="max-width:800px;max-height:90vh;overflow-y:auto"><div class="modal-header"><h2>${sanitizeHTML(lead.company)}</h2><button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;font-size:28px;cursor:pointer">×</button></div><div class="modal-body"><div style="padding:12px;background:var(--surface);border-radius:8px"><p><strong>Phone:</strong> ${sanitizeHTML(lead.phone)||'N/A'}</p><p><strong>Website:</strong> ${lead.website?`<a href="${sanitizeHTML(lead.website)}" target="_blank">${sanitizeHTML(lead.website)}</a>`:'N/A'}</p><p><strong>Location:</strong> ${sanitizeHTML(lead.location)||'N/A'}</p><p><strong>Rating:</strong> ${m.rating||'N/A'} (${m.reviewCount||0} reviews)</p></div>${html}</div></div>`;
+            document.body.appendChild(modal);
+            modal.onclick = e => { if(e.target === modal) modal.remove(); };
+        }
+
+        function changePage(delta) {
+            const newPage = currentPage + delta;
+            if (newPage >= 1) {
+                currentPage = newPage;
+                searchLeads();
+            }
+        }
+
+        async function exportLeads() {
+            showToast('Preparing export...', 'info');
+            const res = await apiCall('/leads/export?format=csv');
+            if (res?.data) {
+                const blob = new Blob([res.data], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'leads_export.csv';
+                a.click();
+                showToast('Export complete!', 'success');
+            }
+        }
+
+        // Scraper
+        async function runScraper() {
+            const query = document.getElementById('scraperQuery').value;
+            const radius = parseInt(document.getElementById('scraperRadius').value);
+
+            if (!query) {
+                showToast('Please enter a search query', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('scraperBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Scraping...';
+
+            const res = await apiCall('/scraper/google', {
+                method: 'POST',
+                body: JSON.stringify({ query, radius })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Start Scraping';
+
+            if (res?.success) {
+                document.getElementById('scraperResult').innerHTML = `
+                    <div style="color: var(--success);">
+                        Found ${res.data.found} businesses, saved ${res.data.saved} new leads
+                    </div>
+                `;
+                showToast(`Scraped ${res.data.saved} new leads!`, 'success');
+            } else {
+                document.getElementById('scraperResult').innerHTML = `
+                    <div style="color: var(--danger);">Error: ${res?.error || 'Scraping failed'}</div>
+                `;
+            }
+        }
+
+        async function runBulkScraper() {
+            const queries = document.getElementById('bulkQueries').value.split('\n').filter(q => q.trim());
+            if (!queries.length) {
+                showToast('Please enter at least one query', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('bulkScraperBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Scraping...';
+
+            const res = await apiCall('/scraper/google/bulk', {
+                method: 'POST',
+                body: JSON.stringify({ queries: queries.map(q => ({ query: q })) })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Start Bulk Scrape';
+
+            if (res?.success) {
+                document.getElementById('bulkScraperResult').innerHTML = `
+                    <div style="color: var(--success);">
+                        Processed ${res.data.results?.length || 0} queries, total leads: ${res.data.saved || 0}
+                    </div>
+                `;
+                showToast(`Bulk scrape complete!`, 'success');
+            }
+        }
+
+        function usePreset(preset) {
+            const presets = {
+                'texas-home-services': [
+                    'plumbers in Austin TX',
+                    'plumbers in Houston TX',
+                    'electricians in Dallas TX',
+                    'HVAC in San Antonio TX',
+                    'roofing in Fort Worth TX'
+                ],
+                'austin-all': [
+                    'plumbers in Austin TX',
+                    'electricians in Austin TX',
+                    'HVAC in Austin TX',
+                    'roofing in Austin TX',
+                    'landscaping in Austin TX',
+                    'pest control in Austin TX'
+                ]
+            };
+
+            if (presets[preset]) {
+                document.getElementById('bulkQueries').value = presets[preset].join('\n');
+                showToast('Preset loaded!', 'success');
+            }
+        }
+
+        // Enrichment
+        async function loadEnrichmentStats() {
+            const res = await apiCall('/leads/stats');
+            if (res?.data) {
+                document.getElementById('enrichedCount').textContent = res.data.byStatus?.enriched || 0;
+                document.getElementById('pendingEnrich').textContent = res.data.byStatus?.new || 0;
+                document.getElementById('failedEnrich').textContent = res.data.byStatus?.failed || 0;
+
+                const total = res.data.total || 1;
+                const enriched = res.data.byStatus?.enriched || 0;
+                const pct = Math.round(enriched / total * 100);
+                document.getElementById('enrichPercent').textContent = `${pct}%`;
+                document.getElementById('enrichProgress').style.width = `${pct}%`;
+            }
+        }
+
+        async function runBatchEnrich() {
+            const limit = parseInt(document.getElementById('enrichBatchSize').value);
+            const status = document.getElementById('enrichTarget').value;
+
+            const btn = document.getElementById('enrichBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Enriching...';
+
+            const res = await apiCall(`/enrichment/batch?limit=${limit}&status=${status}`, {
+                method: 'POST'
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Start Enrichment';
+
+            if (res?.success) {
+                showToast(`Enriched ${res.data?.processed || 0} leads!`, 'success');
+                loadEnrichmentStats();
+            }
+        }
+
+        async function enrichNewLeads() {
+            const res = await apiCall('/enrichment/process-new', { method: 'POST' });
+            if (res?.success) {
+                showToast('Enrichment started!', 'success');
+            }
+        }
+
+        async function retryFailed() {
+            const res = await apiCall('/enrichment/retry-failed', { method: 'POST' });
+            if (res?.success) {
+                showToast('Retrying failed leads!', 'success');
+            }
+        }
+
+        // Qualification
+        async function loadQualificationStats() {
+            const res = await apiCall('/qualify/stats');
+            if (res?.data) {
+                document.getElementById('qualifiedCount').textContent = res.data.scored || 0;
+                document.getElementById('pendingQualify').textContent = res.data.notScored || 0;
+                document.getElementById('avgScoreVal').textContent = res.data.averageScore || 0;
+                updateGradeBar('qualifyGradeBar', 'qualifyGradeLegend', res.data.gradeDistribution, res.data.scored);
+            }
+        }
+
+        async function runBatchQualify() {
+            const limit = parseInt(document.getElementById('qualifyBatchSize').value);
+            const minScore = parseInt(document.getElementById('minScoreFilter').value);
+
+            const btn = document.getElementById('qualifyBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Qualifying...';
+
+            const res = await apiCall(`/qualify/batch?limit=${limit}&minScore=${minScore}`, {
+                method: 'POST'
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Start Qualification';
+
+            if (res?.success) {
+                showToast(`Qualified ${res.data?.processed || 0} leads!`, 'success');
+                loadQualificationStats();
+            }
+        }
+
+        async function qualifyLeads() {
+            const res = await apiCall('/qualify/batch?limit=50', { method: 'POST' });
+            if (res?.success) {
+                showToast('Qualification started!', 'success');
+            }
+        }
+
+        // Multi-AI Functions
+        async function loadMultiAIStatus() {
+            const res = await apiCall('/multi-ai/status');
+            if (res?.success && res.data) {
+                const data = res.data;
+                document.getElementById('multiAIStatus').textContent = data.configured ? 'Ready' : 'Not Configured';
+                document.getElementById('claudeStatus').textContent = data.availableAIs?.includes('claude') ? 'Active' : 'Inactive';
+                document.getElementById('geminiStatus').textContent = data.availableAIs?.includes('gemini') ? 'Active' : 'Inactive';
+            }
+
+            // Load leads for dropdowns
+            const leadsRes = await apiCall('/leads?limit=50&status=enriched');
+            if (leadsRes?.success && leadsRes.data?.leads) {
+                const leads = leadsRes.data.leads;
+                const options = leads.map(l => `<option value="${l.id}">${l.company || l.email || 'Lead ' + l.id}</option>`).join('');
+                document.getElementById('deepEnrichLeadSelect').innerHTML = '<option value="">Select a lead...</option>' + options;
+                document.getElementById('outreachLeadSelect').innerHTML = '<option value="">Select a lead...</option>' + options;
+            }
+        }
+
+        async function runDeepEnrich() {
+            const leadId = document.getElementById('deepEnrichLeadSelect').value;
+            if (!leadId) {
+                showToast('Please select a lead', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('deepEnrichBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Analyzing with both AIs...';
+
+            const resultDiv = document.getElementById('deepEnrichResult');
+            resultDiv.innerHTML = '<div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">Processing... This may take 30-60 seconds.</div>';
+
+            const res = await apiCall(`/multi-ai/deep-enrich/${leadId}`, { method: 'POST' });
+
+            btn.disabled = false;
+            btn.textContent = 'Run Deep Enrichment';
+
+            if (res?.success && res.data) {
+                const d = res.data;
+                resultDiv.innerHTML = `
+                    <div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">
+                        <h4 style="margin-bottom: 0.5rem;">${d.lead?.company || 'Lead'}</h4>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <span class="badge badge-${d.combinedScore >= 7 ? 'a' : d.combinedScore >= 5 ? 'b' : 'c'}">
+                                Score: ${d.combinedScore}/10
+                            </span>
+                            <span class="badge badge-${d.confidence > 0.7 ? 'a' : d.confidence > 0.4 ? 'b' : 'c'}">
+                                Confidence: ${Math.round(d.confidence * 100)}%
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="showDeepEnrichDetails(${JSON.stringify(d).replace(/"/g, '&quot;')})">
+                            View Full Details
+                        </button>
+                    </div>
+                `;
+                showToast('Deep enrichment complete!', 'success');
+            } else {
+                resultDiv.innerHTML = `<div style="padding: 1rem; background: #fee2e2; border-radius: var(--radius); color: #dc2626;">Error: ${res?.error?.message || 'Failed to enrich'}</div>`;
+            }
+        }
+
+        function showDeepEnrichDetails(data) {
+            const modal = document.getElementById('deepEnrichModal');
+            document.getElementById('deepEnrichModalTitle').textContent = `Deep Enrichment: ${data.lead?.company || 'Lead'}`;
+
+            const body = document.getElementById('deepEnrichModalBody');
+            body.innerHTML = `
+                <div style="display: grid; gap: 1rem;">
+                    <div style="display: flex; gap: 1rem;">
+                        <div class="stat-card" style="flex: 1; padding: 1rem;">
+                            <div class="stat-label">Combined Score</div>
+                            <div class="stat-value">${data.combinedScore}/10</div>
+                        </div>
+                        <div class="stat-card" style="flex: 1; padding: 1rem;">
+                            <div class="stat-label">Confidence</div>
+                            <div class="stat-value">${Math.round(data.confidence * 100)}%</div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin: 0;">
+                        <div class="card-header"><span class="card-title">Shared Insights (Both AIs Agree)</span></div>
+                        <div class="card-body">
+                            ${data.insights?.shared?.length ? data.insights.shared.map(i => `<p style="margin: 0.25rem 0;">• ${i}</p>`).join('') : '<p style="color: var(--text-light);">No shared insights identified</p>'}
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="card" style="margin: 0;">
+                            <div class="card-header"><span class="card-title">Claude's Unique Insights</span></div>
+                            <div class="card-body">
+                                ${data.insights?.claudeUnique?.length ? data.insights.claudeUnique.map(i => `<p style="margin: 0.25rem 0;">• ${i}</p>`).join('') : '<p style="color: var(--text-light);">None</p>'}
+                            </div>
+                        </div>
+                        <div class="card" style="margin: 0;">
+                            <div class="card-header"><span class="card-title">Gemini's Unique Insights</span></div>
+                            <div class="card-body">
+                                ${data.insights?.geminiUnique?.length ? data.insights.geminiUnique.map(i => `<p style="margin: 0.25rem 0;">• ${i}</p>`).join('') : '<p style="color: var(--text-light);">None</p>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin: 0;">
+                        <div class="card-header"><span class="card-title">Priority Recommendations</span></div>
+                        <div class="card-body">
+                            ${data.recommendations?.priority?.length ? data.recommendations.priority.map(r => `<p style="margin: 0.25rem 0;">★ ${r}</p>`).join('') : '<p style="color: var(--text-light);">No recommendations</p>'}
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin: 0;">
+                        <div class="card-header"><span class="card-title">Outreach Strategy</span></div>
+                        <div class="card-body">
+                            <p><strong>Approach:</strong> ${data.outreachStrategy?.approach || 'N/A'}</p>
+                            <p><strong>Timing:</strong> ${data.outreachStrategy?.timing || 'N/A'}</p>
+                            <p><strong>Channels:</strong> ${data.outreachStrategy?.channels?.join(', ') || 'N/A'}</p>
+                            <p><strong>Message Themes:</strong> ${data.outreachStrategy?.messageThemes?.join(', ') || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="card" style="margin: 0; border-left: 3px solid var(--warning);">
+                            <div class="card-header"><span class="card-title">Risk Factors</span></div>
+                            <div class="card-body">
+                                ${data.riskFactors?.length ? data.riskFactors.map(r => `<p style="margin: 0.25rem 0;">⚠ ${r}</p>`).join('') : '<p style="color: var(--text-light);">None identified</p>'}
+                            </div>
+                        </div>
+                        <div class="card" style="margin: 0; border-left: 3px solid var(--success);">
+                            <div class="card-header"><span class="card-title">Opportunity Signals</span></div>
+                            <div class="card-body">
+                                ${data.opportunitySignals?.length ? data.opportunitySignals.map(o => `<p style="margin: 0.25rem 0;">✓ ${o}</p>`).join('') : '<p style="color: var(--text-light);">None identified</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('active');
+        }
+
+        async function generateOutreach() {
+            const leadId = document.getElementById('outreachLeadSelect').value;
+            const style = document.getElementById('outreachStyle').value;
+
+            if (!leadId) {
+                showToast('Please select a lead', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('outreachBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+            const resultDiv = document.getElementById('outreachResult');
+            resultDiv.innerHTML = '<div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">Generating outreach with both AIs...</div>';
+
+            const res = await apiCall('/multi-ai/outreach', {
+                method: 'POST',
+                body: JSON.stringify({ leadId, style })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Generate Outreach';
+
+            if (res?.success && res.data) {
+                const d = res.data;
+                resultDiv.innerHTML = `
+                    <div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Subject:</strong>
+                            <div style="padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 0.25rem;">
+                                ${d.subject}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Email Body:</strong>
+                            <div style="padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 0.25rem; white-space: pre-wrap;">
+${d.body}
+                            </div>
+                        </div>
+                        ${d.alternateSubjects?.length ? `
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Alternate Subject Lines:</strong>
+                                <ul style="margin: 0.25rem 0 0 1rem;">
+                                    ${d.alternateSubjects.map(s => `<li>${s}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${d.subject}\\n\\n${d.body.replace(/'/g, "\\'")}')">
+                                Copy Email
+                            </button>
+                            <span class="badge badge-${d.confidence > 0.7 ? 'a' : 'b'}">Confidence: ${Math.round(d.confidence * 100)}%</span>
+                        </div>
+                    </div>
+                `;
+                showToast('Outreach generated!', 'success');
+            } else {
+                resultDiv.innerHTML = `<div style="padding: 1rem; background: #fee2e2; border-radius: var(--radius); color: #dc2626;">Error: ${res?.error?.message || 'Failed to generate'}</div>`;
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text.replace(/\\n/g, '\n')).then(() => {
+                showToast('Copied to clipboard!', 'success');
+            });
+        }
+
+        async function runCompetitorAnalysis() {
+            const company = document.getElementById('competitorCompany').value;
+            const industry = document.getElementById('competitorIndustry').value;
+            const website = document.getElementById('competitorWebsite').value;
+
+            if (!company || !industry) {
+                showToast('Please enter company name and industry', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('competitorBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+
+            const resultDiv = document.getElementById('competitorResult');
+            resultDiv.innerHTML = '<div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">Analyzing competitive landscape...</div>';
+
+            const res = await apiCall('/multi-ai/competitor-analysis', {
+                method: 'POST',
+                body: JSON.stringify({ company, industry, website })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Analyze Competitors';
+
+            if (res?.success && res.data) {
+                const d = res.data;
+                resultDiv.innerHTML = `
+                    <div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">
+                        <h4 style="margin-bottom: 0.5rem;">Competitive Analysis: ${company}</h4>
+                        <span class="badge badge-b">Confidence: ${Math.round(d.confidence * 100)}%</span>
+
+                        <div style="margin-top: 1rem;">
+                            <strong>Market Position:</strong>
+                            <p style="margin: 0.25rem 0;">${d.marketPosition}</p>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <strong>Competitors:</strong>
+                            <p style="margin: 0.25rem 0;">${d.competitors?.join(', ') || 'None identified'}</p>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                            <div>
+                                <strong style="color: var(--success);">Strengths:</strong>
+                                <ul style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                                    ${d.strengths?.map(s => `<li>${s}</li>`).join('') || '<li>None identified</li>'}
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: var(--danger);">Weaknesses:</strong>
+                                <ul style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                                    ${d.weaknesses?.map(w => `<li>${w}</li>`).join('') || '<li>None identified</li>'}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                            <div>
+                                <strong style="color: var(--primary);">Opportunities:</strong>
+                                <ul style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                                    ${d.opportunities?.map(o => `<li>${o}</li>`).join('') || '<li>None identified</li>'}
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: var(--warning);">Threats:</strong>
+                                <ul style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                                    ${d.threats?.map(t => `<li>${t}</li>`).join('') || '<li>None identified</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                showToast('Competitor analysis complete!', 'success');
+            } else {
+                resultDiv.innerHTML = `<div style="padding: 1rem; background: #fee2e2; border-radius: var(--radius); color: #dc2626;">Error: ${res?.error?.message || 'Failed to analyze'}</div>`;
+            }
+        }
+
+        async function runConsensus() {
+            const prompt = document.getElementById('consensusPrompt').value;
+
+            if (!prompt) {
+                showToast('Please enter a question or topic', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('consensusBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Getting consensus...';
+
+            const resultDiv = document.getElementById('consensusResult');
+            resultDiv.innerHTML = '<div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">Both AIs are analyzing...</div>';
+
+            const res = await apiCall('/multi-ai/analyze', {
+                method: 'POST',
+                body: JSON.stringify({ prompt, synthesize: true })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Get AI Consensus';
+
+            if (res?.success && res.data) {
+                const d = res.data;
+                resultDiv.innerHTML = `
+                    <div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <span class="badge badge-b">Processing: ${d.processingTime}ms</span>
+                            <span class="badge badge-${d.confidence > 0.7 ? 'a' : 'b'}">Confidence: ${Math.round(d.confidence * 100)}%</span>
+                        </div>
+
+                        ${d.synthesis ? `
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Synthesized Answer:</strong>
+                                <div style="padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 0.25rem;">
+                                    ${d.synthesis}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <details style="margin-top: 1rem;">
+                            <summary style="cursor: pointer; font-weight: 600;">Claude's Response</summary>
+                            <div style="padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 0.25rem; white-space: pre-wrap;">
+${d.claude?.response || d.claude?.reasoning || 'No response'}
+                            </div>
+                        </details>
+
+                        <details style="margin-top: 0.5rem;">
+                            <summary style="cursor: pointer; font-weight: 600;">Gemini's Response</summary>
+                            <div style="padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 0.25rem; white-space: pre-wrap;">
+${d.gemini?.response || d.gemini?.reasoning || 'No response'}
+                            </div>
+                        </details>
+                    </div>
+                `;
+                showToast('Consensus analysis complete!', 'success');
+            } else {
+                resultDiv.innerHTML = `<div style="padding: 1rem; background: #fee2e2; border-radius: var(--radius); color: #dc2626;">Error: ${res?.error?.message || 'Failed to get consensus'}</div>`;
+            }
+        }
+
+        async function runBatchDeepEnrich() {
+            const limit = parseInt(document.getElementById('batchDeepLimit').value);
+            const status = document.getElementById('batchDeepStatus').value;
+
+            const btn = document.getElementById('batchDeepBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Processing...';
+
+            const resultDiv = document.getElementById('batchDeepResult');
+            resultDiv.innerHTML = '<div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">Processing leads... This may take several minutes.</div>';
+
+            const res = await apiCall('/multi-ai/batch-deep-enrich', {
+                method: 'POST',
+                body: JSON.stringify({ limit, status })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Run Batch Deep Enrich';
+
+            if (res?.success && res.data) {
+                const d = res.data;
+                resultDiv.innerHTML = `
+                    <div style="padding: 1rem; background: var(--bg); border-radius: var(--radius);">
+                        <h4>Batch Processing Complete</h4>
+                        <p>Processed: ${d.processed} leads</p>
+                        <p>Successful: ${d.successful}</p>
+                        <p>Failed: ${d.processed - d.successful}</p>
+                    </div>
+                `;
+                showToast(`Batch deep enrichment complete! ${d.successful}/${d.processed} successful`, 'success');
+            } else {
+                resultDiv.innerHTML = `<div style="padding: 1rem; background: #fee2e2; border-radius: var(--radius); color: #dc2626;">Error: ${res?.error?.message || 'Failed to process batch'}</div>`;
+            }
+        }
+
+        // Settings
+        async function loadSettings() {
+            const health = await checkHealth();
+
+            document.getElementById('apiEndpoint').textContent = window.location.origin;
+            document.getElementById('envMode').textContent = health?.environment || 'unknown';
+            document.getElementById('appVersion').textContent = health?.version || '1.0.0';
+
+            // Update API status indicators based on server capabilities
+            if (health?.capabilities) {
+                const caps = health.capabilities;
+
+                // Anthropic
+                if (caps.anthropic) {
+                    document.getElementById('anthropicStatus').className = 'api-status valid';
+                    document.getElementById('anthropicStatus').textContent = 'Configured ✓';
+                    document.getElementById('anthropicKey').placeholder = '✓ Configured on server';
+                    document.getElementById('anthropicKey').disabled = true;
+                } else {
+                    document.getElementById('anthropicStatus').className = 'api-status invalid';
+                    document.getElementById('anthropicStatus').textContent = 'Not configured';
+                }
+
+                // Gemini
+                if (caps.gemini) {
+                    document.getElementById('geminiStatus').className = 'api-status valid';
+                    document.getElementById('geminiStatus').textContent = 'Configured ✓';
+                    document.getElementById('geminiKey').placeholder = '✓ Configured on server';
+                    document.getElementById('geminiKey').disabled = true;
+                }
+
+                // Google Places
+                if (caps.googlePlaces) {
+                    document.getElementById('googleStatus').className = 'api-status valid';
+                    document.getElementById('googleStatus').textContent = 'Configured ✓';
+                    document.getElementById('googleKey').placeholder = '✓ Configured on server';
+                    document.getElementById('googleKey').disabled = true;
+                }
+
+                // Clay
+                if (caps.clay) {
+                    document.getElementById('clayStatus').className = 'api-status valid';
+                    document.getElementById('clayStatus').textContent = 'Configured ✓';
+                }
+            }
+
+            // Note: API keys are managed server-side via .env file
+            // localStorage is no longer used for sensitive keys
+        }
+
+        function saveSettings() {
+            showToast('⚠️ API keys are managed server-side via .env file', 'warning');
+            showToast('To update keys: Edit .env file and restart the server', 'info');
+
+            // Note: All API keys are read-only and configured via .env
+            // This function no longer saves keys to localStorage for security
+        }
+
+        async function testConnections() {
+            showToast('Testing connections...', 'info');
+
+            // Test API health
+            const health = await checkHealth();
+            if (health?.status === 'healthy') {
+                document.getElementById('anthropicStatus').className = 'api-status valid';
+                document.getElementById('anthropicStatus').textContent = 'Valid';
+            }
+
+            showToast('Connection test complete', 'success');
+        }
+
+        function toggleKeyVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const btn = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+
+        async function clearFailedLeads() {
+            if (!confirm('Are you sure you want to delete all failed leads?')) return;
+            showToast('Clearing failed leads...', 'warning');
+            // Would need backend endpoint
+        }
+
+        async function resetEnrichment() {
+            if (!confirm('Reset all enrichment data? This cannot be undone.')) return;
+            showToast('This feature requires backend support', 'warning');
+        }
+
+        async function enrichLead(id) {
+            const res = await apiCall(`/enrichment/${id}`, { method: 'POST' });
+            if (res?.success) {
+                showToast('Lead enriched!', 'success');
+                searchLeads();
+            }
+        }
+
+        // Pipeline
+        let currentLeadId = null;
+        let pipelineData = {};
+        const STAGES = ['new', 'contacted', 'responded', 'meeting', 'proposal', 'negotiating', 'won', 'lost'];
+        const STAGE_LABELS = {
+            new: 'New', contacted: 'Contacted', responded: 'Responded',
+            meeting: 'Meeting', proposal: 'Proposal', negotiating: 'Negotiating',
+            won: 'Won', lost: 'Lost'
+        };
+
+        async function loadPipeline() {
+            const res = await apiCall('/pipeline');
+            if (res?.success) {
+                pipelineData = res.data;
+                renderKanban(res.data);
+                updatePipelineStats(res.data);
+            }
+        }
+
+        function renderKanban(data) {
+            STAGES.forEach(stage => {
+                const container = document.getElementById(`stage${stage.charAt(0).toUpperCase() + stage.slice(1)}`);
+                const leads = data.pipeline[stage] || [];
+                document.getElementById(`count${stage.charAt(0).toUpperCase() + stage.slice(1)}`).textContent = leads.length;
+
+                container.innerHTML = leads.map(lead => {
+                    const grade = lead.qualification_grade || lead.qualificationGrade || '';
+                    const gradeClass = grade ? `grade-${grade.toLowerCase()}` : '';
+                    return `
+                        <div class="kanban-card ${gradeClass}" onclick="openLeadDetail(${lead.id})">
+                            <div class="kanban-card-title">${lead.company || lead.first_name || 'Unknown'}</div>
+                            <div class="kanban-card-meta">
+                                ${lead.industry ? `<span>${lead.industry}</span>` : ''}
+                                ${grade ? `<span class="badge badge-${grade.toLowerCase()}">${grade}</span>` : ''}
+                            </div>
+                            <div class="kanban-card-actions">
+                                <button onclick="event.stopPropagation(); quickEmail(${lead.id})">Email</button>
+                                <button onclick="event.stopPropagation(); quickCall(${lead.id})">Call</button>
+                                <button onclick="event.stopPropagation(); moveStage(${lead.id}, '${stage}')">Move</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function updatePipelineStats(data) {
+            const counts = data.stageCounts || {};
+            document.getElementById('pipelineTotal').textContent = data.totalLeads || 0;
+            document.getElementById('pipelineWon').textContent = counts.won || 0;
+            document.getElementById('pipelineLost').textContent = counts.lost || 0;
+            const active = (data.totalLeads || 0) - (counts.won || 0) - (counts.lost || 0);
+            document.getElementById('pipelineActive').textContent = active;
+        }
+
+        async function openLeadDetail(id) {
+            currentLeadId = id;
+            const res = await apiCall(`/pipeline/${id}`);
+            if (!res?.success) {
+                showToast('Failed to load lead details', 'error');
+                return;
+            }
+
+            const lead = res.data.lead;
+            const interactions = res.data.interactions || [];
+
+            // Populate modal
+            document.getElementById('modalLeadName').textContent = lead.company || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown';
+            document.getElementById('modalLeadIndustry').textContent = lead.industry || '-';
+            document.getElementById('modalPhone').textContent = lead.phone || '-';
+            document.getElementById('modalEmail').textContent = lead.email || '-';
+            document.getElementById('modalWebsite').innerHTML = lead.website ? `<a href="${lead.website}" target="_blank">Visit</a>` : '-';
+            document.getElementById('modalLocation').textContent = lead.location || '-';
+            document.getElementById('modalScore').textContent = lead.qualification_score || lead.qualificationScore || '-';
+            document.getElementById('modalGrade').textContent = lead.qualification_grade || lead.qualificationGrade || '-';
+            document.getElementById('modalRating').textContent = lead.metadata?.rating || '-';
+            document.getElementById('modalReviews').textContent = lead.metadata?.reviewCount || '-';
+
+            // Stage buttons
+            const currentStage = lead.pipeline_stage || 'new';
+            document.getElementById('stageSelect').innerHTML = STAGES.map(stage => `
+                <button class="stage-btn ${stage === currentStage ? 'active' : ''}"
+                        onclick="updateStage(${id}, '${stage}')">${STAGE_LABELS[stage]}</button>
+            `).join('');
+
+            // Interactions timeline
+            renderInteractions(interactions);
+
+            openModal('leadDetailModal');
+        }
+
+        function renderInteractions(interactions) {
+            const container = document.getElementById('interactionsTimeline');
+            if (!interactions.length) {
+                container.innerHTML = '<p style="color: var(--text-light); text-align: center;">No interactions yet</p>';
+                return;
+            }
+
+            container.innerHTML = interactions.map(int => `
+                <div class="interaction-item">
+                    <div class="interaction-icon ${int.type}">${getInteractionIcon(int.type)}</div>
+                    <div class="interaction-content">
+                        <div class="interaction-subject">${int.subject || int.type}</div>
+                        <div class="interaction-text">${int.content || ''}</div>
+                        <div class="interaction-time">${new Date(int.created_at).toLocaleString()}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getInteractionIcon(type) {
+            const icons = {
+                call: '📞', email: '✉️', meeting: '📅', note: '📝', stage_change: '→'
+            };
+            return icons[type] || '•';
+        }
+
+        async function updateStage(id, stage) {
+            const res = await apiCall(`/pipeline/${id}/stage`, {
+                method: 'PUT',
+                body: JSON.stringify({ stage })
+            });
+            if (res?.success) {
+                showToast(`Stage updated to ${STAGE_LABELS[stage]}`, 'success');
+                loadPipeline();
+                openLeadDetail(id);
+            }
+        }
+
+        function moveStage(id, currentStage) {
+            const idx = STAGES.indexOf(currentStage);
+            const nextStage = STAGES[idx + 1] || STAGES[idx];
+            if (nextStage !== currentStage) {
+                updateStage(id, nextStage);
+            }
+        }
+
+        // Modal helpers
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Email functions
+        function openEmailComposer() {
+            document.getElementById('emailTo').value = '';
+            document.getElementById('emailSubject').value = '';
+            document.getElementById('emailBody').value = '';
+            document.getElementById('emailTemplate').value = '';
+            document.getElementById('emailRecipientName').textContent = 'New Email';
+            openModal('emailComposerModal');
+        }
+
+        function openEmailForLead() {
+            if (!currentLeadId) return;
+            const lead = findLeadById(currentLeadId);
+            if (lead) {
+                document.getElementById('emailTo').value = lead.email || '';
+                document.getElementById('emailRecipientName').textContent = lead.company || 'Lead';
+            }
+            closeModal('leadDetailModal');
+            openModal('emailComposerModal');
+        }
+
+        function quickEmail(id) {
+            currentLeadId = id;
+            openEmailForLead();
+        }
+
+        function quickCall(id) {
+            currentLeadId = id;
+            logCall();
+        }
+
+        function findLeadById(id) {
+            for (const stage of STAGES) {
+                const found = (pipelineData.pipeline?.[stage] || []).find(l => l.id === id);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        async function loadEmailTemplate() {
+            const template = document.getElementById('emailTemplate').value;
+            if (!template) return;
+
+            const lead = currentLeadId ? findLeadById(currentLeadId) : null;
+            const res = await apiCall('/pipeline/email/compose', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    templateType: template
+                })
+            });
+
+            if (res?.success) {
+                document.getElementById('emailSubject').value = res.data.subject || '';
+                document.getElementById('emailBody').value = res.data.body || '';
+            }
+        }
+
+        async function generateEmailWithAI() {
+            if (!currentLeadId) {
+                showToast('Select a lead first', 'warning');
+                return;
+            }
+
+            showToast('Generating email...', 'info');
+            const res = await apiCall('/pipeline/email/generate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    purpose: document.getElementById('emailTemplate').value || 'introduction'
+                })
+            });
+
+            if (res?.success) {
+                document.getElementById('emailSubject').value = res.data.subject || '';
+                document.getElementById('emailBody').value = res.data.body || '';
+                showToast('Email generated!', 'success');
+            } else {
+                showToast('Failed to generate email', 'error');
+            }
+        }
+
+        async function sendEmail() {
+            const to = document.getElementById('emailTo').value;
+            const subject = document.getElementById('emailSubject').value;
+            const body = document.getElementById('emailBody').value;
+
+            if (!to || !subject || !body) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+
+            const res = await apiCall('/pipeline/email/send', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    to, subject, body
+                })
+            });
+
+            if (res?.success) {
+                showToast('Email logged!', 'success');
+                closeModal('emailComposerModal');
+                if (currentLeadId) openLeadDetail(currentLeadId);
+            }
+        }
+
+        // Call logging
+        async function logCall() {
+            if (!currentLeadId) return;
+            const note = prompt('Call notes (optional):');
+
+            const res = await apiCall('/pipeline/interactions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    type: 'call',
+                    subject: 'Phone call',
+                    content: note || 'Phone call logged'
+                })
+            });
+
+            if (res?.success) {
+                showToast('Call logged!', 'success');
+                openLeadDetail(currentLeadId);
+            }
+        }
+
+        // Notes
+        function addNote() {
+            if (!currentLeadId) return;
+            document.getElementById('noteSubject').value = '';
+            document.getElementById('noteContent').value = '';
+            closeModal('leadDetailModal');
+            openModal('noteModal');
+        }
+
+        async function saveNote() {
+            const subject = document.getElementById('noteSubject').value;
+            const content = document.getElementById('noteContent').value;
+
+            if (!subject || !content) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+
+            const res = await apiCall('/pipeline/interactions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    type: 'note',
+                    subject, content
+                })
+            });
+
+            if (res?.success) {
+                showToast('Note saved!', 'success');
+                closeModal('noteModal');
+                openLeadDetail(currentLeadId);
+            }
+        }
+
+        // Proposal generation
+        function generateProposal() {
+            if (!currentLeadId) return;
+            const lead = findLeadById(currentLeadId);
+            document.getElementById('proposalLeadName').textContent = lead?.company || 'Lead';
+            document.getElementById('proposalContent').style.display = 'none';
+            document.getElementById('saveProposalBtn').style.display = 'none';
+            document.getElementById('generateProposalBtn').style.display = '';
+            document.getElementById('proposalText').textContent = '';
+            closeModal('leadDetailModal');
+            openModal('proposalModal');
+        }
+
+        async function generateProposalContent() {
+            const btn = document.getElementById('generateProposalBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+            const res = await apiCall('/pipeline/proposals/generate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    leadId: currentLeadId,
+                    proposalType: document.getElementById('proposalType').value,
+                    customContext: document.getElementById('proposalContext').value,
+                    estimatedValue: parseInt(document.getElementById('proposalValue').value) || 5000
+                })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Regenerate';
+
+            if (res?.success) {
+                document.getElementById('proposalText').textContent = res.data.content;
+                document.getElementById('proposalContent').style.display = 'block';
+                document.getElementById('saveProposalBtn').style.display = '';
+                showToast('Proposal generated!', 'success');
+            } else {
+                showToast('Failed to generate proposal', 'error');
+            }
+        }
+
+        async function saveProposal() {
+            showToast('Proposal saved!', 'success');
+            closeModal('proposalModal');
+            // Update stage to proposal
+            await updateStage(currentLeadId, 'proposal');
+        }
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkHealth();
+            refreshStats();
+            setInterval(checkHealth, 30000);
+        });
+    </script>
+</body>
+</html>

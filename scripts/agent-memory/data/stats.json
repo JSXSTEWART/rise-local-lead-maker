@@ -1,0 +1,17 @@
+{
+    "success": true,
+    "data": {
+        "total": 116,
+        "byStatus": {
+            "new": 105,
+            "enriching": 0,
+            "enriched": 11,
+            "failed": 0
+        },
+        "bySource": {
+            "unknown": 1,
+            "google_places": 114,
+            "mcp-test": 1
+        }
+    }
+}
