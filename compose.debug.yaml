@@ -1,12 +1,62 @@
 services:
-  landingpages:
-    image: landingpages
+  api:
     build:
-      context: rise-local-lead-creation/marketing/landing_pages
-      dockerfile: ./Dockerfile
+      context: ./rise-local-lead-creation/api
+      dockerfile: Dockerfile
+      target: builder
+    container_name: rise-api-dev
+    ports:
+      - "3001:3001"
+      - "9229:9229"
     environment:
       NODE_ENV: development
+      PORT: "3001"
+      DB_HOST: mysql
+      DB_USER: ${DB_USER:-rise}
+      DB_PASSWORD: ${DB_PASSWORD:-devpassword}
+      DB_NAME: ${DB_NAME:-rise_leads}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CLAY_API_KEY: ${CLAY_API_KEY:-}
+      CLAY_TABLE_ID: ${CLAY_TABLE_ID:-}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_SERVICE_ACCOUNT_EMAIL:-}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY:-}
+      GOOGLE_SHEETS_ID: ${GOOGLE_SHEETS_ID:-}
+    volumes:
+      - ./rise-local-lead-creation/api/src:/app/src:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - rise-network
+    command: ["npx", "tsx", "watch", "--inspect=0.0.0.0:9229", "src/index.ts"]
+
+  mysql:
+    image: mysql:8.0
+    container_name: rise-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootdevpassword}
+      MYSQL_DATABASE: ${DB_NAME:-rise_leads}
+      MYSQL_USER: ${DB_USER:-rise}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-devpassword}
     ports:
-      - 3000:3000
-      - 9229:9229
-    command: ["node", "--inspect=0.0.0.0:9229", "index.js"]
+      - "3306:3306"
+    volumes:
+      - mysql-data-dev:/var/lib/mysql
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - rise-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootdevpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  rise-network:
+    driver: bridge
+
+volumes:
+  mysql-data-dev:

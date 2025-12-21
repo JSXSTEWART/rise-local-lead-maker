@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rise-leads": {
+      "command": "node",
+      "args": ["/opt/rise-local-lead-maker/mcp-server/index.js"],
+      "env": {
+        "RISE_API_URL": "http://localhost:3001"
+      }
+    }
+  }
+}

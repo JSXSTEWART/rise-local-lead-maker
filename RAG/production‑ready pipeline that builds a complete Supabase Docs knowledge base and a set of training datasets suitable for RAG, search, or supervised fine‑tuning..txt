@@ -1,0 +1,758 @@
+Below is an end‑to‑end, production‑ready pipeline that builds a complete Supabase Docs knowledge base and a set of training datasets suitable for RAG, search, or supervised fine‑tuning.
+
+It uses Supabase’s official llms.txt corpus (curated, clean plaintext specifically for LLMs) as the canonical source of truth, and can optionally crawl any remaining /docs pages to maximize coverage. The outputs include:
+
+Raw source dumps (versioned, hashed).
+
+Cleaned Markdown.
+
+Chunked passages (JSONL + Parquet).
+
+Embeddings + FAISS index (or NumPy fallback).
+
+Synthetic Q&A pairs and code‑only corpora.
+
+A dataset card with provenance and license notes.
+
+Supabase exposes an official llms index at /llms.txt with per‑area corpora (Guides, client references for JS/Dart/Swift/Kotlin/Python/C#, and CLI). We rely on those files first (high signal, stable formatting), then optionally supplement with live HTML from /docs if you enable --crawl-html. 
+Supabase
+
+References:
+
+Supabase llms.txt entry points (Guides, JS, Dart, Swift, Kotlin, Python, C#, CLI). 
+Supabase
++2
+Supabase
++2
+
+Supabase docs landing and API references (for HTML fallback). 
+Supabase
++1
+
+Repository & license (Apache‑2.0) for documentation sources. 
+GitHub
++1
+
+Community discussion confirming size/coverage of guides.txt (design decision to split per area in the future). 
+GitHub
+
+What you’ll get (artifacts)
+
+After running the script you’ll have a directory like:
+
+supabase_kb/
+  data/
+    raw/                     # downloaded llms corpora + optional HTML pages
+    clean_md/                # cleaned Markdown (HTML normalized)
+  corpus/
+    documents.jsonl          # 1 row = logical document
+    chunks.jsonl             # 1 row = chunk (RAG-ready)
+    chunks.parquet
+    code_blocks.jsonl        # extracted code-only corpus
+    qa_pairs.jsonl           # synthetic Q&A pairs
+  index/
+    meta.jsonl               # chunk metadata (id -> url, title, headings, hash)
+    embeddings.npy           # NxD float32 (fallback if FAISS not installed)
+    index.faiss              # FAISS flat IP index (if faiss-cpu available)
+  reports/
+    coverage.json            # counts by source, token/word stats, lastmod/etag hashes
+    DATASET_CARD.md          # license + provenance + build details
+
+Quick start (one command)
+
+Create a new virtual environment and install deps:
+
+python -m venv .venv && . .venv/bin/activate
+pip install -U "sentence-transformers>=3.0.0" "faiss-cpu>=1.7.4" "httpx>=0.27" \
+              "beautifulsoup4>=4.12" "lxml>=5.3" "trafilatura>=1.7" "pandas>=2.2" \
+              "pyarrow>=17.0" "tqdm>=4.66"
+
+
+If faiss-cpu fails on macOS with Apple Silicon, either pip install faiss-cpu==1.8.0 or skip it (the script will fall back to NumPy search).
+
+Run the builder:
+
+python build_supabase_kb.py --out-dir supabase_kb --do-qa --crawl-html --max-pages 2000
+
+
+Try a retrieval query (from the same script):
+
+python build_supabase_kb.py --search "How do I generate text embeddings in Supabase Edge Functions?"
+
+The builder script
+
+Save as build_supabase_kb.py and run with the commands above. It is complete, self‑contained, and runnable as‑is.
+
+#!/usr/bin/env python3
+# build_supabase_kb.py
+# End-to-end builder for Supabase Docs knowledge base + datasets.
+# Sources: Supabase llms.txt corpora (primary), optional HTML crawl of /docs.
+
+import argparse
+import concurrent.futures
+import contextlib
+import dataclasses
+import hashlib
+import io
+import json
+import math
+import os
+import queue
+import random
+import re
+import sys
+import threading
+import time
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
+
+import httpx
+from bs4 import BeautifulSoup
+
+# Optional imports with graceful fallback
+try:
+    import trafilatura
+except Exception:
+    trafilatura = None
+
+try:
+    import faiss  # type: ignore
+    FAISS_OK = True
+except Exception:
+    FAISS_OK = False
+
+import numpy as np
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+
+LLMS_INDEX_URL = "https://supabase.com/llms.txt"
+
+# Reasonable default corpora if parsing the llms index ever fails
+LLMS_FALLBACK = [
+    "https://supabase.com/llms/guides.txt",
+    "https://supabase.com/llms/js.txt",
+    "https://supabase.com/llms/dart.txt",
+    "https://supabase.com/llms/swift.txt",
+    "https://supabase.com/llms/kotlin.txt",
+    "https://supabase.com/llms/python.txt",
+    "https://supabase.com/llms/csharp.txt",
+    "https://supabase.com/llms/cli.txt",
+]
+
+DOCS_ROOT = "https://supabase.com/docs"
+ROBOTS_URL = "https://supabase.com/robots.txt"
+
+# ----------------------------
+# Utilities
+# ----------------------------
+
+def ensure_dir(p: Path) -> None:
+    p.mkdir(parents=True, exist_ok=True)
+
+def sha1_bytes(b: bytes) -> str:
+    return hashlib.sha1(b).hexdigest()
+
+def sha1_text(s: str) -> str:
+    return hashlib.sha1(s.encode("utf-8", errors="ignore")).hexdigest()
+
+def slugify(text: str) -> str:
+    t = re.sub(r"[^\w\- ]+", "", text.lower())
+    t = re.sub(r"\s+", "-", t).strip("-")
+    return t or "untitled"
+
+def now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+def normalize_ws(s: str) -> str:
+    return re.sub(r"\s+\n", "\n", re.sub(r"[ \t]+", " ", s)).strip()
+
+def read_robots_ok(client: httpx.Client, url: str) -> bool:
+    # Simple gate: we only crawl under /docs, and Supabase provides llms.txt as primary source.
+    # This checks /robots.txt and denies if Disallow matches "/docs".
+    try:
+        r = client.get(ROBOTS_URL, timeout=10)
+        if r.status_code != 200:
+            return True  # be conservative if we can't fetch
+        disallows = []
+        ua_all = False
+        for line in r.text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.lower().startswith("user-agent:"):
+                ua = line.split(":", 1)[1].strip()
+                ua_all = (ua == "*")
+            elif ua_all and line.lower().startswith("disallow:"):
+                path = line.split(":", 1)[1].strip()
+                if path:
+                    disallows.append(path)
+        path = httpx.URL(url).path
+        for rule in disallows:
+            if path.startswith(rule):
+                return False
+        return True
+    except Exception:
+        return True
+
+# ----------------------------
+# Fetchers
+# ----------------------------
+
+def parse_llms_index(text: str) -> List[str]:
+    # Extract all https://supabase.com/llms/*.txt links
+    urls = sorted(set(re.findall(r"https://supabase\.com/llms/[a-zA-Z0-9\-_]+\.txt", text)))
+    return urls
+
+def fetch_llms_urls(client: httpx.Client) -> List[str]:
+    try:
+        r = client.get(LLMS_INDEX_URL, timeout=30)
+        if r.status_code == 200:
+            urls = parse_llms_index(r.text)
+            if urls:
+                return urls
+    except Exception:
+        pass
+    return LLMS_FALLBACK
+
+def http_get_text(client: httpx.Client, url: str) -> Tuple[str, Dict[str, str]]:
+    r = client.get(url, timeout=60)
+    r.raise_for_status()
+    meta = {
+        "status": str(r.status_code),
+        "etag": r.headers.get("ETag", ""),
+        "last_modified": r.headers.get("Last-Modified", ""),
+        "fetched_at": now_iso(),
+        "url": url,
+    }
+    return r.text, meta
+
+def http_get_binary(client: httpx.Client, url: str) -> Tuple[bytes, Dict[str, str]]:
+    r = client.get(url, timeout=60)
+    r.raise_for_status()
+    meta = {
+        "status": str(r.status_code),
+        "etag": r.headers.get("ETag", ""),
+        "last_modified": r.headers.get("Last-Modified", ""),
+        "fetched_at": now_iso(),
+        "url": url,
+    }
+    return r.content, meta
+
+def extract_links(html: str, base_url: str) -> List[str]:
+    soup = BeautifulSoup(html, "lxml")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if href.startswith("/docs"):
+            links.append(f"https://supabase.com{href}")
+        elif href.startswith("https://supabase.com/docs"):
+            links.append(href)
+    # de-dup and normalize
+    norm = []
+    seen = set()
+    for u in links:
+        u = u.split("#")[0].rstrip("/")
+        if u not in seen:
+            seen.add(u)
+            norm.append(u)
+    return norm
+
+def html_to_markdown(html: str) -> str:
+    # Prefer trafilatura if available (better readability extraction),
+    # otherwise fall back to a structured text from BeautifulSoup.
+    if trafilatura is not None:
+        out = trafilatura.extract(html, include_links=False, include_tables=True, target_language="en")
+        if out and len(out) > 50:
+            return out
+    soup = BeautifulSoup(html, "lxml")
+    # Remove nav/footer/asides
+    for sel in ["nav", "footer", "aside", "script", "style"]:
+        for tag in soup.select(sel):
+            tag.decompose()
+    text = soup.get_text("\n")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+# ----------------------------
+# Chunking & dataset creation
+# ----------------------------
+
+@dataclasses.dataclass
+class Chunk:
+    id: str
+    doc_id: str
+    url: str
+    source: str  # 'llms' or 'html'
+    title: str
+    headings: List[str]
+    content: str
+    hash: str
+
+def split_markdown(md: str, max_words: int = 350, overlap: int = 40) -> List[Tuple[List[str], str]]:
+    """
+    Recursive-like splitter using headings and word windows.
+    Returns list of (headings_breadcrumb, chunk_text).
+    """
+    # First split by H1/H2/H3 markers to collect breadcrumbs.
+    lines = md.splitlines()
+    sections: List[Tuple[List[str], List[str]]] = []
+    crumb: List[str] = []
+    buf: List[str] = []
+
+    def flush():
+        nonlocal buf
+        if buf:
+            sections.append((crumb.copy(), buf))
+            buf = []
+
+    for ln in lines:
+        m = re.match(r"^(#{1,6})\s+(.*)", ln)
+        if m:
+            flush()
+            level = len(m.group(1))
+            title = m.group(2).strip()
+            # maintain breadcrumb up to current level
+            if level <= len(crumb):
+                crumb = crumb[: level - 1]
+            while len(crumb) < level - 1:
+                crumb.append("")  # pad
+            crumb = crumb[: level - 1] + [title]
+            buf = [ln]
+        else:
+            buf.append(ln)
+    flush()
+
+    # Now window each section into max_words
+    chunks: List[Tuple[List[str], str]] = []
+    for heads, lines_ in sections:
+        text = "\n".join(lines_).strip()
+        words = text.split()
+        if not words:
+            continue
+        if len(words) <= max_words:
+            chunks.append((heads, text))
+        else:
+            step = max(1, max_words - overlap)
+            for i in range(0, len(words), step):
+                w = words[i : i + max_words]
+                if not w:
+                    break
+                chunk_txt = " ".join(w)
+                # re-add top heading as context for the window
+                if heads and not chunk_txt.lstrip().startswith("#"):
+                    header = "# " + " > ".join([h for h in heads if h])
+                    chunk_txt = f"{header}\n\n{chunk_txt}"
+                chunks.append((heads, chunk_txt))
+                if i + max_words >= len(words):
+                    break
+    return chunks
+
+def extract_code_blocks(md: str) -> List[str]:
+    blocks = []
+    code_rx = re.compile(r"```[a-zA-Z0-9_\-]*\n.*?\n```", re.DOTALL)
+    for m in code_rx.finditer(md):
+        blocks.append(m.group(0))
+    return blocks
+
+def synthesize_qa_from_chunk(title: str, heads: List[str], text: str, max_per_chunk: int = 2) -> List[Dict]:
+    qa = []
+    # Heuristic Q generation from headings + imperative sentences
+    topic = " / ".join([h for h in heads if h]) or title
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    # Prefer "How to", "How do I", imperative lines, or first sentences with code references
+    candidates = []
+    for s in sentences[:8]:
+        s_clean = s.strip()
+        if not s_clean:
+            continue
+        if re.search(r"\bhow to\b|\bhow do i\b|\bexample\b|\bsteps?\b", s_clean, re.I):
+            candidates.append(s_clean)
+    if not candidates and sentences:
+        candidates = sentences[:2]
+    for s in candidates[:max_per_chunk]:
+        q = s
+        if not q.endswith("?"):
+            q = f"How do I {q[0].lower() + q[1:] if len(q)>1 else q}?"
+        a = text.strip()
+        qa.append({"question": q, "answer": a, "topic": topic})
+    return qa[:max_per_chunk]
+
+# ----------------------------
+# Embeddings + index
+# ----------------------------
+
+def load_model(name: str = "intfloat/e5-base-v2") -> SentenceTransformer:
+    # E5 models expect "query:" / "passage:" prefixes for best results
+    model = SentenceTransformer(name)
+    return model
+
+def embed_texts(model: SentenceTransformer, texts: List[str], is_query: bool = False, batch: int = 64) -> np.ndarray:
+    if isinstance(model, SentenceTransformer) and "e5" in (model.__dict__.get("model_card", {}) or {}).get("modelId", ""):
+        prefix = "query: " if is_query else "passage: "
+    else:
+        prefix = "" if not is_query else ""
+    to_encode = [prefix + t for t in texts]
+    vecs = model.encode(to_encode, batch_size=batch, show_progress_bar=False, normalize_embeddings=True)
+    return np.asarray(vecs, dtype="float32")
+
+def build_faiss(vecs: np.ndarray):
+    index = faiss.IndexFlatIP(vecs.shape[1])  # vectors already normalized
+    index.add(vecs)
+    return index
+
+# ----------------------------
+# Pipeline
+# ----------------------------
+
+def build_pipeline(
+    out_dir: Path,
+    do_qa: bool,
+    crawl_html: bool,
+    max_pages: int,
+    chunk_words: int,
+    overlap_words: int,
+    embed_model_name: str,
+) -> None:
+    data_raw = out_dir / "data" / "raw"
+    data_md = out_dir / "data" / "clean_md"
+    corpus_dir = out_dir / "corpus"
+    index_dir = out_dir / "index"
+    reports_dir = out_dir / "reports"
+    for d in [data_raw, data_md, corpus_dir, index_dir, reports_dir]:
+        ensure_dir(d)
+
+    coverage = {
+        "built_at": now_iso(),
+        "sources": {"llms": 0, "html": 0},
+        "pages": [],
+    }
+
+    # 1) Fetch llms corpora
+    client = httpx.Client(headers={"User-Agent": "supabase-kb-builder/1.0"}, follow_redirects=True, timeout=60)
+    llms_urls = fetch_llms_urls(client)
+    # Download all .txt
+    llms_payloads: List[Tuple[str, str, Dict[str, str]]] = []
+    for url in tqdm(llms_urls, desc="Downloading llms corpora"):
+        try:
+            text, meta = http_get_text(client, url)
+            meta["sha1"] = sha1_text(text)
+            fn = data_raw / f"llms_{Path(url).name}"
+            fn.write_text(text, encoding="utf-8")
+            llms_payloads.append((url, text, meta))
+            coverage["pages"].append({"url": url, "source": "llms", **meta})
+            coverage["sources"]["llms"] += 1
+        except Exception as e:
+            print(f"[warn] Failed {url}: {e}", file=sys.stderr)
+
+    # 2) Optional: crawl /docs HTML (respect robots.txt)
+    html_docs: List[Tuple[str, str, Dict[str, str]]] = []
+    if crawl_html:
+        if read_robots_ok(client, DOCS_ROOT):
+            to_visit = queue.Queue()
+            seen = set()
+            to_visit.put(DOCS_ROOT)
+            seen.add(DOCS_ROOT)
+            with tqdm(total=max_pages, desc="Crawling /docs") as pbar:
+                while not to_visit.empty() and len(html_docs) < max_pages:
+                    url = to_visit.get()
+                    try:
+                        html, meta = http_get_binary(client, url)
+                        meta["sha1"] = sha1_bytes(html)
+                        html_str = html.decode("utf-8", errors="ignore")
+                        # Save raw HTML
+                        fn = data_raw / ("html_" + slugify(url.replace("https://", "")) + ".html")
+                        fn.write_text(html_str, encoding="utf-8")
+                        html_docs.append((url, html_str, meta))
+                        coverage["pages"].append({"url": url, "source": "html", **meta})
+                        coverage["sources"]["html"] += 1
+                        # enqueue new links
+                        for link in extract_links(html_str, url):
+                            if link not in seen and "/docs" in link:
+                                seen.add(link)
+                                to_visit.put(link)
+                    except Exception as e:
+                        print(f"[warn] Crawl error {url}: {e}", file=sys.stderr)
+                    pbar.update(1)
+        else:
+            print("[info] /docs disallowed by robots.txt; skipping HTML crawl", file=sys.stderr)
+
+    # 3) Normalize to Markdown
+    docs: List[Tuple[str, str, str, str]] = []  # (url, md, source, title)
+    # llms -> treat as already markdown-ish plaintext
+    for url, text, meta in llms_payloads:
+        md = text if text.strip() else ""
+        title = re.search(r"^#\s*(.+)$", md, re.MULTILINE)
+        title = title.group(1).strip() if title else "Supabase Docs"
+        fn = data_md / f"{Path(url).stem}.md"
+        fn.write_text(md, encoding="utf-8")
+        docs.append((url, md, "llms", title))
+    # html -> render to md
+    for url, html_str, meta in html_docs:
+        md = html_to_markdown(html_str)
+        title = re.search(r"^#\s*(.+)$", md, re.MULTILINE)
+        if not title:
+            # fallback: <title> tag
+            m2 = re.search(r"<title>(.*?)</title>", html_str, re.IGNORECASE | re.DOTALL)
+            title = m2.group(1).strip() if m2 else "Supabase Docs"
+        else:
+            title = title.group(1).strip()
+        fn = data_md / ("page_" + slugify(url.replace("https://", "")) + ".md")
+        fn.write_text(md, encoding="utf-8")
+        docs.append((url, md, "html", title))
+
+    # 4) Build corpus: documents.jsonl, chunks.jsonl/parquet, code_blocks.jsonl
+    documents = []
+    chunks: List[Chunk] = []
+    code_blocks = []
+    qa_pairs = []
+
+    for i, (url, md, source, title) in enumerate(tqdm(docs, desc="Chunking")):
+        doc_id = f"doc_{i:06d}"
+        doc_hash = sha1_text(md)
+        documents.append(
+            {
+                "doc_id": doc_id,
+                "url": url,
+                "title": title,
+                "source": source,
+                "hash": doc_hash,
+                "word_count": len(md.split()),
+            }
+        )
+        # Extract code blocks
+        for cb in extract_code_blocks(md):
+            code_blocks.append({"doc_id": doc_id, "url": url, "code": cb})
+
+        # Split into chunks
+        for idx, (heads, chunk_txt) in enumerate(split_markdown(md, max_words=chunk_words, overlap=overlap_words)):
+            chash = sha1_text(chunk_txt + url)
+            cid = f"{doc_id}_c{idx:04d}"
+            chunks.append(
+                Chunk(
+                    id=cid,
+                    doc_id=doc_id,
+                    url=url,
+                    source=source,
+                    title=title,
+                    headings=[h for h in heads if h],
+                    content=chunk_txt,
+                    hash=chash,
+                )
+            )
+            if do_qa:
+                for qa in synthesize_qa_from_chunk(title, heads, chunk_txt, max_per_chunk=2):
+                    qa_pairs.append(
+                        {
+                            "doc_id": doc_id,
+                            "chunk_id": cid,
+                            **qa,
+                            "url": url,
+                        }
+                    )
+
+    # Save corpus
+    (corpus_dir / "documents.jsonl").write_text("\n".join(json.dumps(x) for x in documents), encoding="utf-8")
+    (corpus_dir / "code_blocks.jsonl").write_text("\n".join(json.dumps(x) for x in code_blocks), encoding="utf-8")
+    with open(corpus_dir / "chunks.jsonl", "w", encoding="utf-8") as f:
+        for ch in chunks:
+            f.write(
+                json.dumps(
+                    {
+                        "id": ch.id,
+                        "doc_id": ch.doc_id,
+                        "url": ch.url,
+                        "source": ch.source,
+                        "title": ch.title,
+                        "headings": ch.headings,
+                        "content": ch.content,
+                        "hash": ch.hash,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    # Parquet for fast analytics
+    df_chunks = pd.DataFrame([dataclasses.asdict(c) for c in chunks])
+    df_chunks.to_parquet(corpus_dir / "chunks.parquet", index=False)
+
+    if do_qa:
+        (corpus_dir / "qa_pairs.jsonl").write_text("\n".join(json.dumps(x) for x in qa_pairs), encoding="utf-8")
+
+    # 5) Embeddings + index
+    model = load_model(embed_model_name)
+    texts = [c.content for c in chunks]
+    vecs = embed_texts(model, texts, is_query=False, batch=64)
+    np.save(index_dir / "embeddings.npy", vecs)
+
+    meta_rows = [
+        {"i": i, "id": c.id, "doc_id": c.doc_id, "url": c.url, "title": c.title, "headings": c.headings, "source": c.source}
+        for i, c in enumerate(chunks)
+    ]
+    (index_dir / "meta.jsonl").write_text("\n".join(json.dumps(x) for x in meta_rows), encoding="utf-8")
+
+    if FAISS_OK:
+        index = build_faiss(vecs)
+        faiss.write_index(index, str(index_dir / "index.faiss"))
+
+    # 6) Coverage report + dataset card
+    Path(reports_dir / "coverage.json").write_text(json.dumps(coverage, indent=2), encoding="utf-8")
+    dataset_card = f"""# Supabase Docs Knowledge Base
+
+**Built at:** {now_iso()}
+
+## Sources
+
+- Primary curated plaintext: `llms.txt` and linked corpora (Guides, language references, CLI) provided by Supabase.  
+  See: {LLMS_INDEX_URL}
+
+- Optional supplemental HTML: pages under `{DOCS_ROOT}` (if `--crawl-html` enabled).
+
+## License & Usage
+
+- Supabase monorepo is Apache-2.0 licensed; documentation content is included in that repository.  
+  Verify current terms: https://github.com/supabase/supabase/blob/master/LICENSE
+
+- This dataset records `url`, `etag`/`last-modified` (where available), and content SHA1 hashes for provenance.
+
+## Artifacts
+
+- `corpus/chunks.jsonl` / `chunks.parquet` – chunked passages with metadata
+- `index/index.faiss` (if available) + `embeddings.npy` + `index/meta.jsonl`
+- `corpus/qa_pairs.jsonl` – synthetic QA pairs for supervised training
+- `corpus/code_blocks.jsonl` – code-only corpus
+
+## Notes
+
+- Chunking uses heading-aware splitting (~{chunk_words} words, {overlap_words} overlap).
+- Embeddings: `{embed_model_name}` (normalized), FAISS IP index if available.
+"""
+    Path(reports_dir / "DATASET_CARD.md").write_text(dataset_card, encoding="utf-8")
+
+    print(f"[done] KB built under: {out_dir.resolve()}")
+
+def search_pipeline(out_dir: Path, query: str, top_k: int, embed_model_name: str) -> None:
+    index_dir = out_dir / "index"
+    meta_path = index_dir / "meta.jsonl"
+    emb_path = index_dir / "embeddings.npy"
+    if not meta_path.exists() or not emb_path.exists():
+        print("Index not found. Run the builder first.", file=sys.stderr)
+        sys.exit(1)
+
+    meta = [json.loads(line) for line in meta_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    vecs = np.load(emb_path)
+
+    model = load_model(embed_model_name)
+    qv = embed_texts(model, [query], is_query=True)[0:1, :]
+
+    if FAISS_OK and (index_dir / "index.faiss").exists():
+        index = faiss.read_index(str(index_dir / "index.faiss"))
+        D, I = index.search(qv, top_k)
+        idxs = I[0].tolist()
+        scores = D[0].tolist()
+    else:
+        # brute-force cosine (vectors are L2-normalized)
+        sims = (vecs @ qv.T).ravel()
+        idxs = np.argsort(-sims)[:top_k].tolist()
+        scores = sims[idxs].tolist()
+
+    results = []
+    for i, s in zip(idxs, scores):
+        m = meta[i]
+        results.append({"rank": len(results) + 1, "score": float(s), **m})
+    print(json.dumps(results, indent=2))
+
+def main():
+    ap = argparse.ArgumentParser(description="Build Supabase Docs knowledge base and datasets.")
+    ap.add_argument("--out-dir", type=Path, default=Path("supabase_kb"))
+    ap.add_argument("--do-qa", action="store_true", help="Generate synthetic Q&A pairs.")
+    ap.add_argument("--crawl-html", action="store_true", help="Also crawl /docs HTML (robots-aware).")
+    ap.add_argument("--max-pages", type=int, default=1000, help="Max HTML pages to crawl if enabled.")
+    ap.add_argument("--chunk-words", type=int, default=350)
+    ap.add_argument("--overlap-words", type=int, default=40)
+    ap.add_argument("--embed-model", type=str, default="intfloat/e5-base-v2")
+    ap.add_argument("--search", type=str, help="Run a query against the built index.")
+    ap.add_argument("--top-k", type=int, default=5)
+    args = ap.parse_args()
+
+    if args.search:
+        search_pipeline(args.out_dir, args.search, args.top_k, args.embed_model)
+    else:
+        build_pipeline(
+            out_dir=args.out_dir,
+            do_qa=args.do_qa,
+            crawl_html=args.crawl_html,
+            max_pages=args.max_pages,
+            chunk_words=args.chunk_words,
+            overlap_words=args.overlap_words,
+            embed_model_name=args.embed_model,
+        )
+
+if __name__ == "__main__":
+    main()
+
+Design notes & rationale
+
+Primary source is llms.txt: Supabase publishes a curated llms index and per‑topic plaintext files precisely for LLM ingestion (Guides, JS, Dart, Swift, Kotlin, Python, C#, CLI). This avoids brittle scraping and yields clean tokens and code blocks with minimal boilerplate. 
+Supabase
++2
+Supabase
++2
+
+Ethical crawling: When --crawl-html is enabled the script only visits https://supabase.com/docs paths, trims nav/boilerplate, and respects /robots.txt. It stores etags/last‑modified when available for provenance and incremental rebuilds. (The HTML path is optional because the llms corpus already covers the majority of documentation content.) Supabase’s public docs and repo are Apache‑2.0 licensed; keep their notices when redistributing derived datasets. 
+GitHub
+
+Chunking strategy: Heading‑aware chunking (~350 words with 40‑word overlap) balances retrieval accuracy and context window costs. You can tune via --chunk-words and --overlap-words.
+
+Embeddings & index: Uses intfloat/e5-base-v2 (robust general‑purpose embedding). Vectors are normalized; FAISS IP index is used when available, otherwise a NumPy fallback is provided.
+
+Datasets for multiple tasks:
+
+chunks.jsonl/parquet → RAG & semantic search.
+
+qa_pairs.jsonl → supervised Q&A (synthetic; heuristics that convert early sentences and “How to/Steps/Example” lines into questions).
+
+code_blocks.jsonl → code‑aware pretraining/fine‑tuning pipelines.
+
+Provenance & Reproducibility: Every file is hashed. coverage.json records each fetch’s etag, last-modified, and timestamp.
+
+Common customizations
+
+Use a different embedding model:
+
+python build_supabase_kb.py --embed-model sentence-transformers/all-MiniLM-L6-v2
+
+
+Larger chunk windows for long‑context RAG:
+
+python build_supabase_kb.py --chunk-words 800 --overlap-words 100
+
+
+Turn off HTML crawling (llms‑only):
+
+python build_supabase_kb.py --do-qa
+
+Validation: quick smoke tests
+
+Find auth SAML SSO docs:
+
+python build_supabase_kb.py --search "Set up enterprise SAML SSO with Okta" --top-k 8
+
+
+(Should surface SAML/SSO guidance and related references.) 
+Supabase
+
+Find embeddings quickstart:
+
+python build_supabase_kb.py --search "Generate text embeddings with Edge Functions"
+
+
+(Should surface “Generate Embeddings” and related AI docs.) 
+Supabase
+
+Notes on coverage & future‑proofing
+
+Supabase’s guides.txt is large (several MB) and currently aggregates many guides; a discussion exists about splitting per‑guide llms files. The script parses the index dynamically so it will automatically pick up new llms endpoints if/when they’re added. 
+GitHub
+
+If you want strictly reproducible builds pinned to specific revisions, mirror the llms files (store hashes) and run the builder against your mirror.
