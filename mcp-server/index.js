@@ -6,7 +6,20 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { execSync } from 'child_process';
+
 const RISE_API_URL = process.env.RISE_API_URL || 'http://localhost:3001';
+const MEMORY_SCRIPT = '/opt/rise-local-lead-maker/scripts/agent-memory/session-logger.sh';
+
+// Helper function for memory/session commands
+function runMemoryCommand(action, ...args) {
+  try {
+    const cmd = `${MEMORY_SCRIPT} ${action} ${args.map(a => `"${a}"`).join(' ')}`;
+    return execSync(cmd, { encoding: 'utf8' }).trim();
+  } catch (error) {
+    return `Error: ${error.message}`;
+  }
+}
 
 // Helper function to make API calls
 async function callAPI(endpoint, method = 'GET', body = null) {
@@ -149,6 +162,65 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['url'],
       },
     },
+    // Memory/Session tools
+    {
+      name: 'rise_session_start',
+      description: 'Start a new agent session for logging and memory',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          description: { type: 'string', description: 'Session description' },
+        },
+      },
+    },
+    {
+      name: 'rise_session_log',
+      description: 'Log an action in the current session',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          level: { type: 'string', enum: ['INFO', 'WARN', 'ERROR', 'TASK'], description: 'Log level' },
+          message: { type: 'string', description: 'Log message' },
+        },
+        required: ['message'],
+      },
+    },
+    {
+      name: 'rise_session_end',
+      description: 'End the current session with a summary',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string', description: 'Session summary' },
+        },
+      },
+    },
+    {
+      name: 'rise_session_status',
+      description: 'Get current session status and recent actions',
+      inputSchema: { type: 'object', properties: {} },
+    },
+    {
+      name: 'rise_session_resume',
+      description: 'Resume a previous session by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Session ID to resume (defaults to most recent)' },
+        },
+      },
+    },
+    {
+      name: 'rise_session_context',
+      description: 'Save context for session resumption',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          context: { type: 'string', description: 'Context to save for later resumption' },
+        },
+        required: ['context'],
+      },
+    },
   ],
 }));
 
@@ -219,6 +291,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await callAPI('/api/scraper/website/single', 'POST', {
           url: args.url,
         });
+        break;
+
+      // Memory/Session tool handlers
+      case 'rise_session_start':
+        result = { output: runMemoryCommand('start', args.description || 'New session') };
+        break;
+
+      case 'rise_session_log':
+        result = { output: runMemoryCommand('log', args.level || 'INFO', args.message) };
+        break;
+
+      case 'rise_session_end':
+        result = { output: runMemoryCommand('end', args.summary || 'Session completed') };
+        break;
+
+      case 'rise_session_status':
+        result = { output: runMemoryCommand('status') };
+        break;
+
+      case 'rise_session_resume':
+        result = { output: runMemoryCommand('resume', args.sessionId || '') };
+        break;
+
+      case 'rise_session_context':
+        result = { output: runMemoryCommand('context', args.context) };
         break;
 
       default:
