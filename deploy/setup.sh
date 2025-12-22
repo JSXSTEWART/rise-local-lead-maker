@@ -15,8 +15,12 @@ NC='\033[0m' # No Color
 # Detect deployment mode
 DEPLOY_MODE="${1:-}"
 
-# Configuration
-PROJECT_HOME="$HOME/rise-local-lead-maker"
+# Configuration - Use current directory if not in HOME
+if [ -f "$(pwd)/compose.yaml" ]; then
+    PROJECT_HOME="$(pwd)"
+else
+    PROJECT_HOME="$HOME/rise-local-lead-maker"
+fi
 API_DIR="$PROJECT_HOME/rise-local-lead-creation/api"
 DEPLOY_DIR="$PROJECT_HOME/deploy"
 LOG_DIR="$PROJECT_HOME/logs"
