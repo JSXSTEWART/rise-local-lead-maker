@@ -1,7 +1,7 @@
 #!/bin/bash
-# cPanel Deployment Setup Script
-# Run this on your cPanel server via SSH after cloning the repository
-# Usage: bash deploy/setup.sh
+# Rise Local Lead Maker - Setup Script
+# Supports both cPanel (PM2) and Docker Container deployment
+# Usage: bash deploy/setup.sh [cpanel|docker]
 
 set -e  # Exit on error
 
@@ -9,7 +9,11 @@ set -e  # Exit on error
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Detect deployment mode
+DEPLOY_MODE="${1:-}"
 
 # Configuration
 PROJECT_HOME="$HOME/rise-local-lead-maker"
@@ -20,6 +24,7 @@ LOG_DIR="$PROJECT_HOME/logs"
 echo -e "${GREEN}======================================${NC}"
 echo -e "${GREEN}Rise Local Lead Maker - Setup Script${NC}"
 echo -e "${GREEN}======================================${NC}"
+echo ""
 
 # Function to print status messages
 status() {
@@ -34,6 +39,178 @@ error() {
 warning() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
+
+info() {
+    echo -e "${BLUE}[i]${NC} $1"
+}
+
+# ============================================================================
+# DEPLOYMENT MODE SELECTION
+# ============================================================================
+if [ -z "$DEPLOY_MODE" ]; then
+    echo -e "${BLUE}Select deployment mode:${NC}"
+    echo "  1) cPanel (PM2) - Traditional cPanel deployment with PM2 process manager"
+    echo "  2) Docker - Container-based deployment with Docker Compose"
+    echo ""
+    read -p "Enter choice (1 or 2): " choice
+    
+    case $choice in
+        1)
+            DEPLOY_MODE="cpanel"
+            ;;
+        2)
+            DEPLOY_MODE="docker"
+            ;;
+        *)
+            error "Invalid choice. Please run again and select 1 or 2."
+            ;;
+    esac
+fi
+
+echo ""
+info "Deployment mode: ${DEPLOY_MODE}"
+echo ""
+
+# ============================================================================
+# DOCKER DEPLOYMENT PATH
+# ============================================================================
+if [ "$DEPLOY_MODE" = "docker" ]; then
+    echo -e "${YELLOW}[Docker Deployment Mode]${NC}"
+    echo ""
+    
+    # Check Docker prerequisites
+    echo -e "${YELLOW}[1/4] Verifying Docker Prerequisites...${NC}"
+    
+    if ! command -v docker &> /dev/null; then
+        error "Docker is not installed. Please install Docker: https://docs.docker.com/get-docker/"
+    fi
+    status "Docker $(docker --version) detected"
+    
+    if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /dev/null; then
+        error "Docker Compose is not installed. Please install Docker Compose: https://docs.docker.com/compose/install/"
+    fi
+    if command -v docker compose &> /dev/null; then
+        status "Docker Compose (plugin) detected"
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        status "Docker Compose $(docker-compose --version) detected"
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+    
+    # Check if Docker daemon is running
+    if ! docker info &> /dev/null; then
+        error "Docker daemon is not running. Please start Docker."
+    fi
+    status "Docker daemon is running"
+    
+    # Verify Dockerfile exists
+    echo ""
+    echo -e "${YELLOW}[2/4] Verifying Project Files...${NC}"
+    
+    if [ ! -f "$API_DIR/Dockerfile" ]; then
+        error "Dockerfile not found at $API_DIR/Dockerfile"
+    fi
+    status "Dockerfile found"
+    
+    if [ ! -f "$PROJECT_HOME/compose.yaml" ]; then
+        error "compose.yaml not found at $PROJECT_HOME/compose.yaml"
+    fi
+    status "Docker Compose configuration found"
+    
+    # Check environment file
+    echo ""
+    echo -e "${YELLOW}[3/4] Environment Configuration...${NC}"
+    
+    if [ ! -f "$PROJECT_HOME/.env" ]; then
+        warning ".env file not found at $PROJECT_HOME/.env"
+        echo ""
+        echo "To complete setup, you must create a .env file:"
+        echo "  1. Copy the example:"
+        echo "     cp $PROJECT_HOME/.env.example $PROJECT_HOME/.env"
+        echo ""
+        echo "  2. Edit the .env file with your actual credentials:"
+        echo "     nano $PROJECT_HOME/.env"
+        echo ""
+        echo "  Required variables:"
+        echo "    - DB_PASSWORD"
+        echo "    - MYSQL_ROOT_PASSWORD"
+        echo "    - ANTHROPIC_API_KEY (optional)"
+        echo "    - GEMINI_API_KEY (optional)"
+        echo "    - GOOGLE_PLACES_API_KEY (optional)"
+        echo ""
+    else
+        status ".env file exists"
+    fi
+    
+    # Build and start containers
+    echo ""
+    echo -e "${YELLOW}[4/4] Building and Starting Containers...${NC}"
+    
+    cd "$PROJECT_HOME"
+    
+    echo "Building Docker images..."
+    $DOCKER_COMPOSE_CMD build || error "Failed to build Docker images"
+    status "Docker images built successfully"
+    
+    echo ""
+    echo "Starting containers..."
+    $DOCKER_COMPOSE_CMD up -d || error "Failed to start containers"
+    status "Containers started"
+    
+    # Wait for services to be healthy
+    echo ""
+    echo "Waiting for services to become healthy..."
+    sleep 10
+    
+    # Check container status
+    if $DOCKER_COMPOSE_CMD ps | grep -q "unhealthy"; then
+        warning "Some containers are unhealthy. Check logs with: $DOCKER_COMPOSE_CMD logs"
+    else
+        status "All containers are running"
+    fi
+    
+    # ========================================================================
+    # DOCKER DEPLOYMENT SUMMARY
+    # ========================================================================
+    echo ""
+    echo -e "${GREEN}======================================${NC}"
+    echo -e "${GREEN}Docker Deployment Complete!${NC}"
+    echo -e "${GREEN}======================================${NC}"
+    echo ""
+    echo "Services:"
+    echo "  • API:   http://localhost:3001"
+    echo "  • MySQL: localhost:3306"
+    echo ""
+    echo "Common Commands:"
+    echo "  View logs:        $DOCKER_COMPOSE_CMD logs -f"
+    echo "  Stop services:    $DOCKER_COMPOSE_CMD down"
+    echo "  Restart services: $DOCKER_COMPOSE_CMD restart"
+    echo "  Rebuild images:   $DOCKER_COMPOSE_CMD build"
+    echo ""
+    echo "Next Steps:"
+    if [ ! -f "$PROJECT_HOME/.env" ]; then
+        echo "  1. Create .env file: cp .env.example .env"
+        echo "  2. Edit .env with your credentials"
+        echo "  3. Restart containers: $DOCKER_COMPOSE_CMD restart"
+    else
+        echo "  1. Verify API is running:"
+        echo "     curl http://localhost:3001/health"
+        echo ""
+        echo "  2. Access the GUI:"
+        echo "     Open gui/index.html in your browser"
+        echo ""
+        echo "  3. Import sample data or start using the API"
+    fi
+    echo ""
+    
+    exit 0
+fi
+
+# ============================================================================
+# CPANEL DEPLOYMENT PATH (Original implementation)
+# ============================================================================
+echo -e "${YELLOW}[cPanel Deployment Mode]${NC}"
+echo ""
 
 # ============================================================================
 # 1. VERIFY PREREQUISITES
