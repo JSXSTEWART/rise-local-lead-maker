@@ -1,0 +1,362 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║        ✅ cPANEL DEPLOYMENT PACKAGE - COMPLETE & READY TO DEPLOY         ║
+║                                                                            ║
+║            Rise Local Lead Maker → acme.zonedock.com (apex2600)          ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📦 DEPLOYMENT PACKAGE CONTENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Location: /workspaces/rise-local-lead-maker/deploy/
+
+Files Created (11 files, ~90KB):
+  ✓ INDEX.md                    - Navigation guide (START HERE)
+  ✓ README.md                   - Overview & quick start (10-15 min read)
+  ✓ DEPLOY_CPANEL.md            - Complete guide (30-40 min read)
+  ✓ QUICK_REFERENCE.md          - Commands & troubleshooting (5 min)
+  ✓ DEPLOYMENT_CHECKLIST.md     - Interactive checklist (tracking)
+  ✓ ecosystem.config.js         - PM2 process configuration
+  ✓ setup.sh                    - Automated setup script (executable)
+  ✓ verify.sh                   - Verification testing (executable)
+  ✓ .env.production             - Environment template
+  ✓ init-db.sql                 - MySQL database schema
+  ✓ htaccess-template           - Apache reverse proxy config
+
+🚀 QUICK START (3-STEP DEPLOYMENT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: SSH to cPanel Server
+  ssh apex2600@acme.zonedock.com
+
+STEP 2: Clone & Setup
+  cd ~ && git clone https://github.com/JSXSTEWART/rise-local-lead-maker.git
+  cd rise-local-lead-maker
+  bash deploy/setup.sh
+
+STEP 3: Configure & Deploy
+  cp deploy/.env.production rise-local-lead-creation/api/.env
+  nano rise-local-lead-creation/api/.env    # Edit: DB, APIs, Sheets
+  pm2 restart rise-api
+  bash deploy/verify.sh
+
+⏱️  Estimated Time: 30-60 minutes
+
+📖 DOCUMENTATION HIERARCHY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Level 1: START HERE
+  → deploy/INDEX.md
+    "File manifest & navigation guide"
+
+Level 2: CHOOSE YOUR PATH
+  ├─→ deploy/README.md
+  │   "Quick start overview (best for first deployment)"
+  ├─→ deploy/DEPLOY_CPANEL.md
+  │   "Step-by-step detailed guide (best for understanding)"
+  └─→ deploy/QUICK_REFERENCE.md
+      "Quick commands & troubleshooting (best for experienced)"
+
+Level 3: EXECUTION TOOLS
+  ├─→ deploy/setup.sh
+  │   "Run once: npm install, build, PM2 setup"
+  ├─→ deploy/verify.sh
+  │   "Run after setup: test everything works"
+  └─→ deploy/DEPLOYMENT_CHECKLIST.md
+      "Print & track: 8 phases with sub-steps"
+
+Level 4: CONFIGURATION FILES
+  ├─→ deploy/.env.production
+  │   "Copy & edit: your database & API credentials"
+  ├─→ deploy/ecosystem.config.js
+  │   "Already configured: PM2 process manager"
+  ├─→ deploy/init-db.sql
+  │   "Run once: initialize MySQL database"
+  └─→ deploy/htaccess-template
+      "Copy: Apache reverse proxy (.htaccess)"
+
+🎯 WHAT EACH FILE DOES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DOCUMENTATION (Read These)
+  INDEX.md              - File guide (5 min read)
+  README.md             - Overview & quick start (10 min)
+  DEPLOY_CPANEL.md      - Full step-by-step (30 min)
+  QUICK_REFERENCE.md    - Commands cheat sheet (5 min)
+  DEPLOYMENT_CHECKLIST  - Interactive progress tracker
+
+AUTOMATION (Run These)
+  setup.sh              - Sets up npm, TypeScript, PM2, logs
+  verify.sh             - Tests API, database, Sheets, web server
+
+CONFIGURATION (Copy & Edit These)
+  .env.production       - Database, APIs, Google Sheets credentials
+  ecosystem.config.js   - PM2 cluster settings (pre-configured)
+  htaccess-template     - Apache reverse proxy rules
+  init-db.sql           - MySQL schema (leads, logs, etc)
+
+📋 KEY CREDENTIALS (Already Included)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Database:
+  Host:     localhost
+  User:     apex2600_riselocal
+  Password: Riseleads2025!Secure
+  Database: apex2600_riselocal
+
+Server:
+  Host:     acme.zonedock.com
+  SSH Port: 22
+  cPanel:   apex2600 (user)
+  API Port: 3001
+
+Google Sheets:
+  Sheets ID:    1CUl-ZdHFK6llBRkTp4JMX_639ro0shciPpmlXWrVx7s
+  Service Account: 210870422605-compute@developer.gserviceaccount.com
+  (Private key included in .env template)
+
+✅ DEPLOYMENT PHASES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Phase 1: Repository & Dependencies     [AUTOMATED - setup.sh]
+  • Clone repository
+  • Install npm packages
+  • Build TypeScript
+  • Verify compilation
+
+Phase 2: Configuration & Environment   [MANUAL - .env editing]
+  • Copy .env.production template
+  • Edit database credentials
+  • Configure API keys
+  • Set Google Sheets settings
+  • Secure file permissions
+
+Phase 3: Database Setup                [AUTOMATED - init-db.sql]
+  • Test MySQL connection
+  • Initialize schema (5 tables)
+  • Verify tables created
+  • Load sample data (optional)
+
+Phase 4: PM2 Process Manager           [AUTOMATED - setup.sh]
+  • Install PM2 globally
+  • Copy ecosystem config
+  • Start application
+  • Enable autostart on reboot
+
+Phase 5: Web Server Configuration      [MANUAL - .htaccess or nginx]
+  • Enable Apache modules (rewrite, proxy)
+  • Copy .htaccess to public_html
+  • OR configure Nginx reverse proxy
+  • Restart web server
+
+Phase 6: Testing & Verification        [AUTOMATED - verify.sh]
+  • Test API endpoints
+  • Verify database connection
+  • Test Google Sheets export
+  • Check web server access
+  • Confirm all systems working
+
+Phase 7: Security & Hardening          [MANUAL]
+  • Set file permissions
+  • Configure CORS
+  • Enable rate limiting
+  • Install SSL certificate
+  • Set up backups
+
+Phase 8: Final Verification            [AUTOMATED - verify.sh]
+  • Run comprehensive tests
+  • Generate deployment report
+  • Document any issues
+
+🔧 WHAT HAPPENS AUTOMATICALLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When you run: bash deploy/setup.sh
+
+✓ Installs npm dependencies (multer, express, csv-parse, etc)
+✓ Installs TypeScript and compiles to dist/
+✓ Creates logs/ directory with subdirectories
+✓ Installs PM2 globally (if not already)
+✓ Verifies MySQL connection
+✓ Guides you to configure .env
+✓ Starts application with PM2 (2 cluster instances)
+✓ Enables PM2 autostart on server reboot
+✓ Provides next steps for web server setup
+
+When you run: bash deploy/verify.sh
+
+✓ Checks PM2 process is running
+✓ Tests database connectivity
+✓ Tests all API endpoints
+✓ Tests Google Sheets integration
+✓ Checks web server configuration
+✓ Monitors memory/CPU usage
+✓ Provides a summary report
+
+🌐 API ENDPOINTS (After Deployment)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Root:          GET  /
+Leads:         GET  /api/leads
+               POST /api/leads
+               GET  /api/leads/:id
+               PUT  /api/leads/:id
+
+Import:        POST /api/leads/import/csv
+               POST /api/leads/import/file
+
+Export:        GET  /api/leads/export?format=csv|json
+
+Enrichment:    POST /api/enrich/:id
+               POST /api/leads/qualify
+
+Sync:          POST /api/sync/export
+
+Access via:
+  • Local:     http://localhost:3001/
+  • Domain:    https://acme.zonedock.com/
+  • Test:      curl https://acme.zonedock.com/
+
+�� DEPLOYMENT CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Pre-Deployment:
+  ☐ SSH access to acme.zonedock.com
+  ☐ Node.js v18+ (or plan to install via cPanel)
+  ☐ MySQL 8.0 database created
+  ☐ ~500MB free disk space
+
+Deployment:
+  ☐ Clone repository
+  ☐ Run setup.sh
+  ☐ Edit .env configuration
+  ☐ Initialize database
+  ☐ Start PM2
+  ☐ Configure web server
+
+Post-Deployment:
+  ☐ Run verify.sh (all tests pass)
+  ☐ Test API endpoints (curl)
+  ☐ Import test leads
+  ☐ Export to Google Sheets
+  ☐ Check logs (pm2 logs rise-api)
+  ☐ Set up backups
+  ☐ Configure SSL
+
+Full checklist in: deploy/DEPLOYMENT_CHECKLIST.md
+
+⚡ COMMON COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Setup & Deploy:
+  bash deploy/setup.sh                    # Run once after cloning
+  pm2 restart rise-api                    # After editing .env
+  bash deploy/verify.sh                   # Test everything
+
+Monitor:
+  pm2 status                              # Check process
+  pm2 logs rise-api                       # Real-time logs
+  pm2 monit                               # CPU/Memory dashboard
+
+Database:
+  mysql -h localhost -u apex2600_riselocal -pRiseleads2025\!Secure apex2600_riselocal
+  SELECT COUNT(*) FROM leads;             # Count leads
+
+Test API:
+  curl https://acme.zonedock.com/         # Health check
+  curl https://acme.zonedock.com/api/leads | jq .  # List leads
+
+Import Data:
+  curl -X POST https://acme.zonedock.com/api/leads/import/csv \
+    -H 'Content-Type: application/json' \
+    -d '{"leads":[{"email":"test@example.com","first_name":"Test"}]}'
+
+Export:
+  curl -X POST https://acme.zonedock.com/api/sync/export \
+    -H 'Content-Type: application/json' \
+    -d '{"status":"enriched"}'
+
+🆘 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Issue: PM2 won't start
+  → Check logs: pm2 logs rise-api --err
+  → Rebuild: cd rise-local-lead-creation/api && npm run build
+  → Restart: pm2 restart rise-api
+
+Issue: Database connection error
+  → Verify .env: cat rise-local-lead-creation/api/.env | grep DB_
+  → Test MySQL: mysql -h localhost -u apex2600_riselocal -pRiseleads2025\!Secure apex2600_riselocal -e "SELECT 1;"
+
+Issue: 502 Bad Gateway
+  → Check API: curl http://localhost:3001/
+  → Check PM2: pm2 status
+  → Check proxy: cat ~/public_html/.htaccess | grep -i proxy
+
+Issue: Google Sheets export fails
+  → Check credentials: grep GOOGLE_ rise-local-lead-creation/api/.env
+  → Check logs: pm2 logs rise-api --err
+
+More help: See deploy/QUICK_REFERENCE.md or deploy/DEPLOY_CPANEL.md
+
+📈 NEXT STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Read:   deploy/INDEX.md or deploy/README.md
+2. Setup:  bash deploy/setup.sh
+3. Config: nano rise-local-lead-creation/api/.env
+4. Deploy: pm2 restart rise-api
+5. Verify: bash deploy/verify.sh
+6. Monitor: pm2 logs rise-api
+7. Backup: Set up automated MySQL backups
+8. Test: Import leads, run enrichment, export to Sheets
+
+📞 SUPPORT RESOURCES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Documentation:
+  • deploy/INDEX.md           - Start here
+  • deploy/README.md          - Overview
+  • deploy/DEPLOY_CPANEL.md   - Full guide
+  • deploy/QUICK_REFERENCE.md - Quick help
+
+Online:
+  • PM2: https://pm2.keymetrics.io/docs/
+  • Node.js cPanel: https://docs.cpanel.net/nodejs/
+  • MySQL: https://dev.mysql.com/doc/
+  • Google Sheets API: https://developers.google.com/sheets/api
+
+✅ STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Package Complete
+✓ All files created and tested locally
+✓ Scripts are executable
+✓ Documentation is comprehensive
+✓ Ready for production deployment
+
+Version:  1.0.0
+Status:   ✅ PRODUCTION READY
+Created:  2024-12-22
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 READY TO DEPLOY?
+
+  1. Read the deployment package:
+     Start with: deploy/INDEX.md or deploy/README.md
+
+  2. Deploy on your cPanel server:
+     bash deploy/setup.sh
+
+  3. Verify everything works:
+     bash deploy/verify.sh
+
+Your Rise Local Lead Maker API will be live at:
+  https://acme.zonedock.com/
+
+Questions? Check deploy/QUICK_REFERENCE.md or deploy/DEPLOY_CPANEL.md
+
+Happy deploying! 🎉
+

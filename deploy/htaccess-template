@@ -1,0 +1,143 @@
+# Apache Configuration for Node.js Reverse Proxy
+# 
+# This file should be placed at: /home/apex2600/public_html/.htaccess
+# 
+# To create it, run:
+# cp deploy/htaccess-template /home/apex2600/public_html/.htaccess
+# 
+# Or via cPanel:
+# 1. File Manager > public_html
+# 2. Create New File > .htaccess
+# 3. Edit file and paste this content
+# 
+# Then enable Apache modules:
+# a2enmod rewrite
+# a2enmod proxy
+# a2enmod proxy_http
+# 
+# And restart Apache:
+# systemctl restart apache2
+
+# ============================================================================
+# Rewrite Engine Configuration
+# ============================================================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Don't rewrite if request is for actual file or directory
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Rewrite all other requests to Node.js app on localhost:3001
+    RewriteRule ^(.*)$ http://localhost:3001/$1 [P,L]
+</IfModule>
+
+# ============================================================================
+# Proxy Configuration
+# ============================================================================
+<IfModule mod_proxy.c>
+    # Preserve original Host header
+    ProxyPreserveHost On
+    
+    # Forward all requests to Node.js server
+    ProxyPass / http://localhost:3001/
+    ProxyPassReverse / http://localhost:3001/
+    
+    # Websocket support (if needed for real-time features)
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) "ws://localhost:3001/$1" [P,L]
+</IfModule>
+
+# ============================================================================
+# Headers for Better Performance
+# ============================================================================
+<IfModule mod_headers.c>
+    # Remove server signature
+    Header always unset X-Powered-By
+    Header always unset X-AspNet-Version
+    
+    # Set proper cache headers for static assets
+    <FilesMatch "^(.+\.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot))$">
+        Header set Cache-Control "max-age=31536000, public"
+    </FilesMatch>
+</IfModule>
+
+# ============================================================================
+# Compression (if mod_deflate is available)
+# ============================================================================
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+</IfModule>
+
+# ============================================================================
+# Security Headers
+# ============================================================================
+<IfModule mod_headers.c>
+    # Enable HSTS (only if HTTPS is configured)
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    
+    # X-Frame-Options (prevent clickjacking)
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # X-Content-Type-Options (prevent MIME sniffing)
+    Header set X-Content-Type-Options "nosniff"
+    
+    # X-XSS-Protection (legacy but helpful)
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Content Security Policy (if needed)
+    # Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline';"
+</IfModule>
+
+# ============================================================================
+# Logging (Optional - for debugging)
+# ============================================================================
+# Uncomment to enable detailed logging
+# LogLevel warn
+# CustomLog ${APACHE_LOG_DIR}/rise-api-access.log combined
+# ErrorLog ${APACHE_LOG_DIR}/rise-api-error.log
+
+# ============================================================================
+# Performance & Optimization
+# ============================================================================
+
+# Don't index directory listings
+IndexIgnore *
+
+# Remove ETags (can cause issues with load balancers)
+<IfModule mod_headers.c>
+    Header unset ETag
+    FileETag None
+</IfModule>
+
+# ============================================================================
+# Timeouts (increase if needed for long-running requests)
+# ============================================================================
+# ProxyTimeout 300
+# TimeOut 300
+
+# ============================================================================
+# Notes
+# ============================================================================
+# 
+# Required Apache modules (enable with a2enmod):
+# - mod_rewrite: For URL rewriting
+# - mod_proxy: For reverse proxy
+# - mod_proxy_http: For HTTP proxy
+# - mod_headers: For custom headers
+# - mod_deflate: For compression (optional)
+# 
+# To enable modules:
+# sudo a2enmod rewrite proxy proxy_http headers deflate
+# sudo systemctl restart apache2
+# 
+# To verify configuration:
+# apache2ctl -M | grep proxy
+# apache2ctl -M | grep rewrite
+# 
+# Test with:
+# curl -sSf https://acme.zonedock.com/
+# curl -sSf http://localhost:3001/
+#
