@@ -1,0 +1,34 @@
+groups:
+  - name: gpu_billing
+    interval: 1m
+    rules:
+      # GPU utilization hours per tenant
+      - record: gpu:hours:by_tenant
+        expr: |
+          sum by (tenant_id, gpu) (
+            increase(DCGM_FI_DEV_GPU_UTIL[1h]) / 100
+          )
+      
+      # GPU memory usage GB-hours
+      - record: gpu:vram_gb_hours:by_tenant
+        expr: |
+          sum by (tenant_id, gpu) (
+            (DCGM_FI_DEV_FB_USED / 1024) * (1 / 60)
+          )
+      
+      # Total energy consumption kWh
+      - record: gpu:energy_kwh:by_tenant
+        expr: |
+          sum by (tenant_id) (
+            increase(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION[1h]) / 3600000
+          )
+
+  - name: billing_aggregations
+    interval: 1h
+    rules:
+      # Daily GPU cost estimate
+      - record: billing:gpu_cost_usd:daily
+        expr: |
+          sum by (tenant_id) (
+            gpu:hours:by_tenant * 24 * 2.00
+          )
