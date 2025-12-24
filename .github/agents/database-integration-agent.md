@@ -79,6 +79,131 @@ When working on database/integration tasks:
 6. Consider rate limits for external APIs
 7. Test connection pooling under load
 
+## Code Style Guide
+
+### Query Builder Style
+```typescript
+// ✅ Use descriptive variable names for queries
+const { data: newLeads, error } = await supabase
+  .from('leads')
+  .select('*')
+  .eq('status', 'new')
+  .order('created_at', { ascending: false })
+  .limit(50);
+
+// ✅ Handle errors explicitly
+if (error) {
+  logger.error('Failed to fetch leads', error);
+  throw new Error('Database query failed');
+}
+
+// ✅ Type query results
+interface Lead {
+  id: string;
+  email: string;
+  // ...
+}
+const { data, error } = await supabase
+  .from('leads')
+  .select<Lead>('*');
+```
+
+### Integration Client Patterns
+```typescript
+// ✅ Use async/await with proper error handling
+async function enrichWithAI(lead: Lead): Promise<EnrichmentResult> {
+  try {
+    const response = await anthropicClient.messages.create({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return parseResponse(response);
+  } catch (error) {
+    logger.error('AI enrichment failed', { leadId: lead.id, error });
+    throw new EnrichmentError('Failed to enrich lead');
+  }
+}
+
+// ✅ Use retry logic for transient failures
+import { withRetry } from './utils/retry';
+
+const result = await withRetry(
+  () => externalApiCall(),
+  { maxRetries: 3, initialDelayMs: 1000 }
+);
+```
+
+### Environment Variable Access
+```typescript
+// ✅ Access via validated config object
+import { env } from './config/env';
+
+const apiKey = env.ANTHROPIC_API_KEY; // Type-safe, validated
+
+// ❌ Don't access process.env directly
+// Bad: const key = process.env.ANTHROPIC_API_KEY;
+```
+
+### API Response Validation
+```typescript
+// ✅ Validate external API responses with Zod
+import { z } from 'zod';
+
+const PlacesResultSchema = z.object({
+  name: z.string(),
+  formatted_address: z.string().optional(),
+  rating: z.number().optional(),
+});
+
+const validated = PlacesResultSchema.parse(apiResponse);
+
+// ✅ Handle validation errors gracefully
+try {
+  const data = ApiResponseSchema.parse(response);
+  return data;
+} catch (error) {
+  logger.warn('Invalid API response', { response, error });
+  return null; // Or fallback value
+}
+```
+
+### Connection Management
+```typescript
+// ✅ Always close connections in cleanup
+process.on('SIGTERM', async () => {
+  await closePool();
+  process.exit(0);
+});
+
+// ✅ Test connection before use
+async function ensureConnection() {
+  try {
+    await testConnection();
+  } catch (error) {
+    logger.error('Database connection failed', error);
+    throw error;
+  }
+}
+```
+
+### Logging Practices
+```typescript
+// ✅ Log important events with context
+logger.info('Lead enrichment started', { leadId, provider: 'anthropic' });
+logger.error('Enrichment failed', { leadId, error: error.message });
+
+// ❌ Never log sensitive data
+// Bad: logger.info('API call', { apiKey: env.ANTHROPIC_API_KEY });
+// Bad: logger.debug('User data', { password: user.password });
+
+// ✅ Redact sensitive fields
+logger.debug('API request', { 
+  url: request.url,
+  headers: { ...request.headers, authorization: '[REDACTED]' }
+});
+```
+
 ## Database Patterns
 
 ```typescript
@@ -117,3 +242,6 @@ try {
 - Don't assume provider availability
 - Test connection recovery scenarios
 - Document integration changes in CLAUDE.md
+- Follow naming conventions (camelCase for functions/variables)
+- Use TypeScript types for all database queries
+- Validate all external data with Zod schemas

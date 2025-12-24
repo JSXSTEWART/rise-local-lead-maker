@@ -18,6 +18,132 @@ This project deploys in multiple environments:
 - **Production**: cPanel with PM2 process manager
 - **API Service**: Systemd service (`rise-api.service`)
 
+## Scripting Style Guide
+
+### Bash Script Style
+```bash
+#!/bin/bash
+# ✅ Always include shebang and description
+# Description: Backup MySQL database with rotation
+
+# ✅ Use set options for safety
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+
+# ✅ Use UPPERCASE for environment/config variables
+DB_HOST="${DB_HOST:-localhost}"
+DB_USER="${DB_USER:-root}"
+BACKUP_DIR="/var/backups/mysql"
+
+# ✅ Use lowercase for local variables
+backup_date=$(date +%Y%m%d_%H%M%S)
+backup_file="${BACKUP_DIR}/backup_${backup_date}.sql.gz"
+
+# ✅ Use functions for reusable code
+check_dependencies() {
+    command -v mysqldump >/dev/null 2>&1 || {
+        echo "Error: mysqldump not found" >&2
+        exit 1
+    }
+}
+
+# ✅ Quote variables to handle spaces
+if [ -f "${backup_file}" ]; then
+    echo "Backup exists: ${backup_file}"
+fi
+
+# ✅ Use meaningful exit codes
+exit 0  # Success
+exit 1  # General error
+exit 2  # Misuse
+```
+
+### Docker Compose Style
+```yaml
+# ✅ Use version 3.8+ for modern features
+version: '3.8'
+
+services:
+  # ✅ Use descriptive service names
+  api:
+    # ✅ Group related configs together
+    image: node:18-alpine
+    container_name: rise-api
+    
+    # ✅ Use environment files for config
+    env_file:
+      - .env
+    
+    # ✅ Named volumes for persistence
+    volumes:
+      - ./api:/app
+      - node_modules:/app/node_modules
+    
+    # ✅ Explicit port mapping
+    ports:
+      - "3001:3001"
+    
+    # ✅ Health checks for reliability
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+### PM2 Configuration Style
+```javascript
+// ✅ Use module.exports format
+module.exports = {
+  apps: [{
+    // ✅ Descriptive app name
+    name: 'rise-api',
+    
+    // ✅ Absolute paths for clarity
+    script: '/home/user/app/dist/index.js',
+    cwd: '/home/user/app',
+    
+    // ✅ Environment configuration
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3001
+    },
+    
+    // ✅ Process management settings
+    instances: 1,
+    exec_mode: 'cluster',
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '500M',
+    
+    // ✅ Logging configuration
+    error_file: './logs/error.log',
+    out_file: './logs/out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+  }]
+};
+```
+
+### Environment Variable Style
+```bash
+# ✅ Group related variables
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=rise_leads
+DB_USER=dbuser
+
+# ✅ Use clear, descriptive names
+GOOGLE_PLACES_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+
+# ✅ Include inline comments for clarity
+# Port for API server (default: 3001)
+PORT=3001
+
+# ✅ Use defaults when appropriate
+NODE_ENV=production  # production, development, or test
+```
+
 ## Deployment Environments
 
 ### Docker Development

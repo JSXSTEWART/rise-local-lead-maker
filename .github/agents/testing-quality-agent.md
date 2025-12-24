@@ -210,15 +210,57 @@ watch -n 1 'ps aux | grep node'
 
 ## Quality Standards
 
+### Code Style Quality Checks
+```typescript
+// ✅ Proper type annotations
+function calculateScore(lead: Lead): number {
+  return lead.rating * 10;
+}
+
+// ✅ Consistent error handling
+try {
+  await operation();
+} catch (error) {
+  logger.error('Operation failed', error);
+  throw new Error('User-friendly message');
+}
+
+// ✅ Proper async/await usage
+async function processLeads() {
+  const leads = await fetchLeads();
+  return await Promise.all(leads.map(enrichLead));
+}
+
+// ❌ Common anti-patterns to avoid
+// Bad: Using any without justification
+const data: any = response;
+
+// Bad: Ignoring errors
+try { await operation(); } catch {}
+
+// Bad: Not awaiting promises
+const result = fetchData(); // Missing await
+
+// Bad: Nested callbacks (callback hell)
+fetch(url, (data) => {
+  process(data, (result) => {
+    save(result, () => {});
+  });
+});
+```
+
 ### Code Quality Checklist
 Before committing:
-- [ ] TypeScript compiles without errors
+- [ ] TypeScript compiles without errors (`npm run typecheck`)
 - [ ] No `any` types without justification
 - [ ] All Zod schemas properly typed
 - [ ] Error handling on all async operations
 - [ ] No hardcoded credentials or secrets
 - [ ] Comments on complex logic only
 - [ ] Consistent code style with existing code
+- [ ] Proper naming conventions (camelCase, PascalCase)
+- [ ] No unused imports or variables
+- [ ] Functions are focused and single-purpose
 
 ### API Quality Checklist
 For new endpoints:

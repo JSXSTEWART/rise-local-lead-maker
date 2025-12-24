@@ -67,7 +67,51 @@ The MCP server (`/mcp-server/index.js`) exposes 40+ tools to Claude Desktop:
 
 ## Tool Design Patterns
 
-### Input Schema
+### Code Style for MCP Tools
+```javascript
+// ✅ Use descriptive tool names with rise_ prefix
+const tools = [
+  {
+    name: "rise_create_lead",  // Clear, actionable name
+    description: "Creates a new lead in the system with optional enrichment",
+    // ...
+  }
+];
+
+// ✅ Use const for tool definitions
+const toolDefinition = {
+  name: "rise_example",
+  description: "Clear one-line description",
+  inputSchema: { /* ... */ }
+};
+
+// ✅ Destructure inputs for clarity
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const { leadId, options = {} } = request.params.arguments;
+  // Use destructured variables
+});
+
+// ✅ Use async/await consistently
+async function handleToolCall(args) {
+  const response = await axios.post(url, data);
+  return formatResponse(response);
+}
+
+// ❌ Avoid callback-style async
+// Bad: axios.post(url).then(res => { }).catch(err => { });
+```
+
+### Tool Naming Conventions
+- **Prefix**: All tools start with `rise_`
+- **Format**: `rise_verb_noun` (e.g., `rise_create_lead`, `rise_batch_enrich`)
+- **Consistency**: Use same verbs across tools
+  - `create` - Create single item
+  - `batch_*` - Batch operations
+  - `list` - List/query items
+  - `get` - Get single item by ID
+  - `*_stats` - Get statistics
+
+### Input Schema Style
 ```javascript
 {
   name: "rise_example_tool",
@@ -89,7 +133,7 @@ The MCP server (`/mcp-server/index.js`) exposes 40+ tools to Claude Desktop:
 }
 ```
 
-### Error Handling
+### Error Handling Pattern
 ```javascript
 try {
   const response = await axios.post(`${API_BASE_URL}/api/endpoint`, data)
@@ -123,6 +167,28 @@ return {
     }, null, 2)
   }]
 }
+```
+
+### Code Organization
+```javascript
+// 1. Imports at top
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import axios from 'axios';
+
+// 2. Constants
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
+
+// 3. Tool definitions array
+const tools = [
+  { name: "rise_tool_1", /* ... */ },
+  { name: "rise_tool_2", /* ... */ },
+];
+
+// 4. Helper functions
+function formatResponse(data) { /* ... */ }
+
+// 5. Request handlers
+server.setRequestHandler(/* ... */);
 ```
 
 ## Configuration

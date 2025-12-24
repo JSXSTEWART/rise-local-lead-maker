@@ -96,17 +96,145 @@ const leads = getLeadsFromResponse(apiResponse)
 const normalized = leads.map(normalizeLead)
 ```
 
+## Code Style Guide
+
+### JavaScript Style
+```javascript
+// ✅ Use const/let - never var
+const apiUrl = 'http://localhost:3001';
+let currentPage = 1;
+
+// ✅ Use arrow functions for callbacks
+leads.map(lead => formatLead(lead))
+button.addEventListener('click', () => handleClick())
+
+// ✅ Use template literals for strings
+const message = `Lead ${lead.firstName} ${lead.lastName} created`;
+
+// ✅ Use async/await
+async function fetchLeads() {
+  const response = await fetch(API_BASE_URL + '/api/leads');
+  return await response.json();
+}
+
+// ❌ Avoid function() syntax in new code
+// Bad: button.onclick = function() { }
+// Good: button.onclick = () => { }
+```
+
+### Naming Conventions
+- **Variables/Functions**: camelCase (`currentPage`, `fetchLeads`)
+- **Constants**: SCREAMING_SNAKE_CASE (`API_BASE_URL`, `MAX_RETRIES`)
+- **CSS Classes**: kebab-case (`lead-card`, `btn-primary`)
+- **HTML IDs**: camelCase (`leadsList`, `searchInput`)
+
+### CSS Style
+```css
+/* ✅ Use CSS custom properties (variables) */
+:root {
+    --primary: #2563eb;
+    --border: #e2e8f0;
+    --radius: 8px;
+}
+
+/* ✅ Group related properties */
+.card {
+    /* Display & Box Model */
+    display: flex;
+    padding: 1rem;
+    margin: 0.5rem;
+    
+    /* Visual */
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    
+    /* Typography */
+    color: var(--text);
+    font-size: 1rem;
+}
+
+/* ✅ Use consistent spacing units */
+/* Prefer rem/em over px for scalability */
+padding: 1rem;      /* Good */
+margin: 0.5rem;     /* Good */
+```
+
+### HTML Structure
+```html
+<!-- ✅ Use semantic HTML -->
+<section class="leads-section">
+    <header class="section-header">
+        <h2>Leads</h2>
+    </header>
+    <article class="lead-card">
+        <h3>Lead Name</h3>
+    </article>
+</section>
+
+<!-- ✅ Use data attributes for JS hooks -->
+<button data-action="delete" data-id="123">Delete</button>
+
+<!-- ✅ Add ARIA labels for accessibility -->
+<button aria-label="Close dialog" onclick="closeDialog()">×</button>
+```
+
+### DOM Manipulation Patterns
+```javascript
+// ✅ Create elements safely
+function createLeadCard(lead) {
+    const card = document.createElement('div');
+    card.className = 'lead-card';
+    
+    const name = document.createElement('h3');
+    name.textContent = `${lead.firstName} ${lead.lastName}`; // Safe from XSS
+    
+    card.appendChild(name);
+    return card;
+}
+
+// ✅ Use innerHTML only with sanitized content
+element.innerHTML = sanitizeHTML(userInput);
+
+// ❌ Never use innerHTML with unsanitized user input
+// Bad: element.innerHTML = userInput;
+```
+
+### Event Handling
+```javascript
+// ✅ Use event delegation for dynamic content
+document.getElementById('leadsList').addEventListener('click', (e) => {
+    if (e.target.matches('[data-action="delete"]')) {
+        const id = e.target.dataset.id;
+        deleteLead(id);
+    }
+});
+
+// ✅ Clean up event listeners when removing elements
+const button = document.createElement('button');
+const handler = () => console.log('clicked');
+button.addEventListener('click', handler);
+// Later: button.removeEventListener('click', handler);
+```
+
+### CSS Class Naming
+- **Components**: `.lead-card`, `.search-bar`, `.filter-panel`
+- **States**: `.is-active`, `.is-loading`, `.has-error`
+- **Utilities**: `.text-center`, `.hidden`, `.flex`
+- **BEM-style for complex components**: `.card__header`, `.card__title`
+
 ## Your Responsibilities
 
 When working on GUI tasks:
 1. **No Build Required** - Changes are instant, just refresh browser
 2. **Cache-Busting** - Hard refresh (Ctrl+Shift+R) to clear cache
 3. **Security First** - Always use `sanitizeHTML()` for user input
-4. **Error Handling** - Show user-friendly error messages
-5. **API Compatibility** - Handle both response formats
-6. **Browser Testing** - Test in multiple browsers
-7. **Performance** - Minimize DOM manipulation
-8. **Accessibility** - Use semantic HTML and ARIA labels
+4. **Code Style** - Follow JavaScript and CSS style guides above
+5. **Error Handling** - Show user-friendly error messages
+6. **API Compatibility** - Handle both response formats
+7. **Browser Testing** - Test in multiple browsers
+8. **Performance** - Minimize DOM manipulation
+9. **Accessibility** - Use semantic HTML and ARIA labels
 
 ## Common Tasks
 
