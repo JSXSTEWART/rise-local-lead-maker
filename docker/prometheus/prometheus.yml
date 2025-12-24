@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'llm-containers'
+    environment: 'production'
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # DCGM-Exporter - GPU metrics
+  - job_name: 'dcgm'
+    static_configs:
+      - targets: ['dcgm-exporter:9400']
+    
+  # Traefik metrics
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik-gateway:8080']
+  
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

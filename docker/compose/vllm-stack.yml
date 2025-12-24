@@ -1,0 +1,73 @@
+# vLLM Container Stack - High Performance LLM Inference
+# Optimized for production deployment with GPU support
+
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.11.0
+    container_name: ${TENANT_ID}-vllm
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-all}
+    command:
+      - "--model"
+      - "${MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}"
+      - "--dtype"
+      - "bfloat16"
+      - "--gpu-memory-utilization"
+      - "${GPU_MEMORY_UTIL:-0.9}"
+      - "--max-model-len"
+      - "${MAX_MODEL_LEN:-8192}"
+      - "--port"
+      - "8000"
+      - "--host"
+      - "0.0.0.0"
+      - "--served-model-name"
+      - "${SERVED_MODEL_NAME:-llama3}"
+    volumes:
+      - model-cache:/data/model
+      - hf-cache:/root/.cache/huggingface
+    labels:
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.${TENANT_ID}.rule=Host(`${SUBDOMAIN}`)"
+      - "traefik.http.routers.${TENANT_ID}.entrypoints=websecure"
+      - "traefik.http.routers.${TENANT_ID}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${TENANT_ID}.loadbalancer.server.port=8000"
+      
+      # Rate limiting
+      - "traefik.http.middlewares.${TENANT_ID}-ratelimit.ratelimit.average=${RATE_LIMIT:-100}"
+      - "traefik.http.middlewares.${TENANT_ID}-ratelimit.ratelimit.burst=200"
+      
+      # API key authentication (if enabled)
+      - "traefik.http.middlewares.${TENANT_ID}-auth.headers.customrequestheaders.Authorization=Bearer ${API_KEY}"
+      - "traefik.http.routers.${TENANT_ID}.middlewares=${TENANT_ID}-ratelimit"
+    networks:
+      - llm-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${GPU_COUNT:-1}
+              capabilities: [gpu]
+    shm_size: ${SHM_SIZE:-128g}
+    ipc: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  llm-network:
+    external: true
+
+volumes:
+  model-cache:
+    driver: local
+  hf-cache:
+    driver: local

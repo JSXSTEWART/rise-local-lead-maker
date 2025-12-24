@@ -1,0 +1,37 @@
+{
+  "schema": "1.0",
+  "type": "provisioning",
+  "name": "llmcontainer",
+  "displayName": "LLM Container Provisioning",
+  "version": "1.0.0",
+  "description": "Automated deployment and management of LLM inference containers with GPU support, multi-tenancy, and usage-based billing",
+  "author": {
+    "name": "Rise Local Lead Maker",
+    "url": "https://github.com/JSXSTEWART/rise-local-lead-maker"
+  },
+  "compatibility": {
+    "whmcs": "8.13+",
+    "php": "8.1+"
+  },
+  "features": [
+    "Multi-LLM support (Llama, Mistral, CodeLlama, Gemma)",
+    "Multiple inference engines (vLLM, Ollama, TGI)",
+    "GPU resource management and allocation",
+    "Automatic subdomain and SSL provisioning",
+    "Usage-based billing (GPU hours, tokens, requests)",
+    "API key authentication",
+    "Rate limiting per tenant",
+    "Container lifecycle management",
+    "Real-time metrics and monitoring"
+  ],
+  "requirements": {
+    "server": "Portainer 2.33+",
+    "docker": "20.10+",
+    "gpu": "NVIDIA Container Toolkit 1.18+ (optional)",
+    "monitoring": "Prometheus + DCGM-Exporter (optional for billing)"
+  },
+  "links": {
+    "documentation": "https://github.com/JSXSTEWART/rise-local-lead-maker/tree/main/whmcs-module",
+    "support": "https://github.com/JSXSTEWART/rise-local-lead-maker/issues"
+  }
+}

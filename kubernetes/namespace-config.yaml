@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-tenants
+  labels:
+    name: llm-tenants
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tenant-quota
+  namespace: llm-tenants
+spec:
+  hard:
+    requests.nvidia.com/gpu: "10"  # Total GPUs available for all tenants
+    requests.memory: 256Gi
+    requests.cpu: "80"
+    limits.memory: 512Gi
+    pods: "50"
+    services: "20"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: llm-tenants
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-gateway
+  namespace: llm-tenants
+spec:
+  podSelector:
+    matchLabels:
+      app: llm-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vllm-config
+  namespace: llm-tenants
+data:
+  models.json: |
+    {
+      "llama3-8b": {
+        "model_id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "vram_gb": 8,
+        "max_model_len": 8192
+      },
+      "mistral-7b": {
+        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+        "vram_gb": 8,
+        "max_model_len": 8192
+      }
+    }
